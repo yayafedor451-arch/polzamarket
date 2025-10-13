@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ПользаМаркет</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- Библиотека для генерации QR-кодов -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- Этот скрипт подключает официальную библиотеку Telegram для Mini Apps -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+
+    <main id="app-container">
+        <!-- ЭКРАН 1: КАТАЛОГ (ГЛАВНЫЙ) -->
+        <section id="catalog-view" class="view active">
+            <header class="app-header">
+                <h1>Каталог</h1>
+                <!-- ИЗМЕНЕНИЕ: ДОБАВЛЕНА ИКОНКА ДЛЯ ВЫЗОВА ЧАТА -->
+                <div id="support-chat-btn" class="support-icon">
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <div id="status-badge">Загрузка...</div>
+            </header>
+            <div id="category-pills-container" class="category-pills">
+                <!-- Сюда JS будет вставлять кнопки-категории -->
+            </div>
+            <div id="products-grid" class="products-grid">
+                <div id="product-loader" class="product-loader">
+                    <h2 class="loader-title">
+                        <span>П</span><span>О</span><span>Л</span><span>Ь</span><span>З</span><span>А</span><span>M</span><span>A</span><span>R</span><span>K</span><span>E</span><span>T</span>
+                    </h2>
+                    <p class="loader-subtitle">выкладываем товар на полки...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 2: ПРОФИЛЬ -->
+        <section id="profile-view" class="view hidden">
+            <header class="app-header">
+                <h1>Профиль</h1>
+            </header>
+
+            <!-- Блок с активным заказом -->
+            <div id="active-order-section">
+                <h2>Активный заказ</h2>
+                <div id="active-order-container" class="card text-center">
+                    <div id="order-animation-container" class="hidden">
+                        <div class="processing-container">
+                            <div class="checkmark-wrapper">
+                                <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                                    <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                                    <path class="checkmark-path" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                                </svg>
+                            </div>
+                            <h2 class="processing-text">Готово! Создаем ваш заказ...</h2>
+                        </div>
+                        <div id="confetti-container"></div>
+                    </div>
+                    <div id="order-content-container">
+                        <!-- Сюда JS вставит QR-код или сообщение "нет заказов" -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок системы лояльности -->
+            <div class="card">
+                <h2>Система лояльности</h2>
+                <div class="loyalty-status">
+                    <span id="user-status">Standard</span>
+                    <span id="user-discount" class="discount-badge">0% скидка</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div id="loyalty-progress" class="progress-bar"></div>
+                </div>
+                <small id="loyalty-hint">Загрузка данных...</small>
+            </div>
+
+            <!-- НОВАЯ СТРУКТУРА БЛОКА ИСТОРИИ ЗАКАЗОВ -->
+            <div class="card">
+                <h2>История заказов</h2>
+                <div id="order-history-container">
+                    <p class="empty-cart">История заказов пока пуста.</p>
+                </div>
+                <button id="show-all-history-btn" class="btn-secondary hidden" style="margin-top: 15px;">Показать все</button>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 3: КОРЗИНА -->
+        <section id="cart-view" class="view hidden">
+            <header class="app-header">
+                <h1>Корзина</h1>
+            </header>
+            <div id="cart-items-container"></div>
+            <div id="cart-summary" class="hidden">
+                <div class="summary-row">
+                    <span>Сумма</span>
+                    <span id="subtotal-price">0 руб.</span>
+                </div>
+                <div class="summary-row" id="discount-row" style="display: none;">
+                    <span>Скидка</span>
+                    <span id="discount-amount">0 руб.</span>
+                </div>
+                <div class="summary-row total">
+                    <span>К оплате</span>
+                    <span id="final-price">0 руб.</span>
+                </div>
+                <button id="checkout-btn" class="btn-primary">Оформить заказ</button>
+                <!-- --- ИЗМЕНЕНИЕ: ДОБАВЛЕНА КНОПКА ДЛЯ ОТМЕНЫ РЕДАКТИРОВАНИЯ --- -->
+                <button id="cancel-edit-btn" class="btn-secondary hidden" style="margin-top: 10px;">Отменить редактирование</button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- МОДАЛЬНОЕ ОКНО ОФОРМЛЕНИЯ ЗАКАЗА -->
+    <div id="order-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-modal-btn" class="close-btn">&times;</button>
+            <h2 id="modal-title">Оформление заказа</h2>
+            <div class="form-group">
+                <label for="delivery-options">Способ получения:</label>
+                <select id="delivery-options"></select>
+            </div>
+            <!-- Блок ввода адреса удален -->
+            <div class="form-group">
+                <label for="phone-number">Ваш номер телефона:</label>
+                <input type="tel" id="phone-number" placeholder="+7 (999) 123-45-67">
+            </div>
+            <button id="submit-order-btn" class="btn-primary">Подтвердить заказ</button>
+            <div id="modal-error" class="error"></div>
+        </div>
+    </div>
+
+    <!-- НОВОЕ МОДАЛЬНОЕ ОКНО ДЛЯ ДЕТАЛЕЙ ЗАКАЗА ИЗ ИСТОРИИ -->
+    <div id="history-detail-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-history-modal-btn" class="close-btn">&times;</button>
+            <h2>Детали заказа <span id="history-modal-order-id"></span></h2>
+            <div id="history-modal-collage-container" class="modal-collage">
+                <!-- JS вставит сюда большой коллаж из фото -->
+            </div>
+            <div id="history-modal-info" class="order-details-small">
+                 <!-- JS вставит сюда информацию о заказе -->
+            </div>
+            <h3>Состав заказа</h3>
+            <div id="history-modal-products-list">
+                <!-- JS вставит сюда список товаров в заказе -->
+            </div>
+        </div>
+    </div>
+
+    <!-- НОВОЕ МОДАЛЬНОЕ ОКНО ДЛЯ ДЕТАЛЕЙ АКТИВНОГО ЗАКАЗА -->
+    <div id="active-order-detail-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-active-order-modal-btn" class="close-btn">&times;</button>
+            <h2>Состав активного заказа</h2>
+            <div id="active-order-modal-products-list">
+                <!-- JS вставит сюда список товаров в заказе -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- НИЖНЯЯ НАВИГАЦИОННАЯ ПАНЕЛЬ -->
+    <nav class="bottom-nav">
+        <a href="#" class="nav-link active" data-view="catalog-view">
+            <i class="fas fa-store"></i>
+            <span>Каталог</span>
+        </a>
+        <!-- ИЗМЕНЕНИЕ: добавлен ID -->
+        <a href="#" id="profile-nav-link" class="nav-link" data-view="profile-view">
+            <i class="fas fa-user"></i>
+            <span>Профиль</span>
+        </a>
+        <a href="#" class="nav-link" data-view="cart-view">
+            <i class="fas fa-shopping-basket"></i>
+            <span>Корзина</span>
+            <span id="cart-badge" class="cart-badge hidden">0</span>
+        </a>
+    </nav>
+
+    <div id="error-popup" class="error-popup hidden"></div>
+    <div id="toast-notification" class="toast"></div>
+
+    <!-- ИЗМЕНЕНИЕ: ОБНОВЛЕННЫЙ БЛОК ЧАТА ПОДДЕРЖКИ -->
+    <div id="support-chat-overlay" class="chat-overlay hidden">
+        <div id="chat-window" class="chat-window">
+            <header class="chat-header">
+                <h2>Поддержка</h2>
+                <button id="close-chat-btn" class="close-btn">&times;</button>
+            </header>
+            <div id="chat-messages" class="chat-messages">
+                <!-- Сюда JS будет добавлять сообщения -->
+            </div>
+            <div id="chat-faq-buttons" class="chat-faq-buttons">
+                <!-- Сюда JS будет добавлять кнопки с частыми вопросами -->
+            </div>
+            <!-- НОВЫЙ БЛОК: ПОЛЕ ВВОДА ТЕКСТА -->
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Введите сообщение...">
+                <button id="chat-send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
