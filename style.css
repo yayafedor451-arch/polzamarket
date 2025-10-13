@@ -620,3 +620,27 @@ h2 {
     background-color: var(--primary-color-dark);
     transform: scale(0.9);
 }
+
+/* --- НАЧАЛО ДОПОЛНЕНИЯ: СТИЛИ ДЛЯ РЕАЛЬНОГО ЧАТА --- */
+
+.chat-timestamp {
+    font-size: 10px;
+    color: inherit;
+    opacity: 0.6;
+    margin-left: 8px;
+    display: inline-block;
+    vertical-align: bottom;
+    line-height: 1.5;
+}
+
+.user-message .chat-timestamp {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-loader {
+    text-align: center;
+    color: var(--text-light-color);
+    padding: 20px;
+}
+
+/* --- КОНЕЦ ДОПОЛНЕНИЯ --- */

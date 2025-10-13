@@ -1,4 +1,4 @@
-// Файл: app.js (Версия с пагинацией истории заказов)
+// Файл: app.js (Версия с пагинацией истории заказов и РЕАЛЬНЫМ ЧАТОМ)
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -17,6 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let toastTimer = null;
     let currentCategory = 'Все';
     let isEditingComposition = false;
+
+    // --- НАЧАЛО ДОПОЛНЕНИЯ: WEBSOCKET ДЛЯ ЧАТА ---
+    let ws = null; // Переменная для хранения объекта WebSocket
+    let userId = null; // Будем хранить ID пользователя
+    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
 
     // НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ ПАГИНАЦИИ
     let currentHistoryOffset = 0; // Отслеживает, сколько заказов уже загружено
@@ -775,6 +780,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- НАЧАЛО ДОПОЛНЕНИЯ: ФУНКЦИИ ДЛЯ РАБОТЫ С WEBSOCKET ---
+
+    // Функция для установки соединения
+    const connectWebSocket = () => {
+        // Получаем user_id из InitData
+        try {
+            const initData = new URLSearchParams(tg.initData);
+            const userData = JSON.parse(initData.get('user'));
+            if (!userData || !userData.id) {
+                console.error("Не удалось получить ID пользователя из InitData");
+                return;
+            }
+            userId = userData.id;
+        } catch (e) {
+            console.error("Ошибка парсинга InitData:", e);
+            // Для локального тестирования без Telegram можно использовать фейковый ID
+            if (!userId) userId = '12345_test';
+        }
+
+
+        // Формируем правильный URL для WebSocket
+        const wsUrl = API_BASE_URL.replace('https', 'wss').replace('http', 'ws') + `/ws/${userId}`;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('[WS] Соединение установлено');
+        };
+
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            console.log('[WS] Получено сообщение:', message);
+            // Добавляем полученное сообщение в чат, если чат открыт
+            if (!supportChatOverlay.classList.contains('hidden')) {
+                addChatMessage(message.text, message.sender_type);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('[WS] Соединение закрыто. Попытка переподключения через 3 секунды...');
+            setTimeout(connectWebSocket, 3000); // Пытаемся переподключиться
+        };
+
+        ws.onerror = (error) => {
+            console.error('[WS] Произошла ошибка:', error);
+            ws.close(); // Закрываем соединение при ошибке, onclose вызовет переподключение
+        };
+    };
+
+    // Функция для отправки сообщения через WebSocket
+    const sendWsMessage = (type, payload) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            const message = JSON.stringify({ type, ...payload });
+            ws.send(message);
+        } else {
+            console.error('[WS] Соединение не готово для отправки сообщения.');
+            addChatMessage("Ошибка отправки. Проверьте интернет-соединение.", 'bot');
+        }
+    };
+
+    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
+
     tg.ready();
     tg.expand();
     if (tg.isVersionAtLeast('6.1')) { tg.disableVerticalSwipes(); }
@@ -783,13 +849,9 @@ document.addEventListener('DOMContentLoaded', () => {
     navigateTo('catalog-view');
     initializeAndFetch();
 
-    // --- ИЗМЕНЕНИЕ: ОБНОВЛЕННАЯ ЛОГИКА ЧАТА ПОДДЕРЖКИ ---
+    // --- БЛОК НИЖЕ БЫЛ ПОЛНОСТЬЮ ЗАМЕНЕН ---
 
-    const initialFaq = [
-        "Отмена заказа",
-        "Не засчитали заказ",
-        "Хочу доставку"
-    ];
+    // --- ЛОГИКА ЧАТА ПОДДЕРЖКИ (РЕАЛЬНАЯ ВЕРСИЯ) ---
 
     // SVG-аватар оператора
     const operatorAvatarSvg = `
@@ -804,7 +866,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Функция для добавления сообщения в чат
     const addChatMessage = (text, type = 'bot') => {
-        if (type === 'bot') {
+        const messageEl = document.createElement('div');
+        const timestamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+        if (type === 'bot' || type === 'admin') {
             const container = document.createElement('div');
             container.classList.add('bot-message-container');
 
@@ -812,38 +877,47 @@ document.addEventListener('DOMContentLoaded', () => {
             avatarEl.classList.add('bot-avatar');
             avatarEl.innerHTML = operatorAvatarSvg;
 
-            const messageEl = document.createElement('div');
             messageEl.classList.add('chat-message', 'bot-message');
-            messageEl.textContent = text;
+            messageEl.innerHTML = `${text}<span class="chat-timestamp">${timestamp}</span>`;
 
             container.appendChild(avatarEl);
             container.appendChild(messageEl);
             chatMessages.appendChild(container);
         } else { // 'user'
-            const messageEl = document.createElement('div');
             messageEl.classList.add('chat-message', 'user-message');
-            messageEl.textContent = text;
+            messageEl.innerHTML = `${text}<span class="chat-timestamp">${timestamp}</span>`;
             chatMessages.appendChild(messageEl);
         }
-        // Автоматическая прокрутка вниз
         chatMessages.scrollTop = chatMessages.scrollHeight;
     };
 
-    // Функция для рендера кнопок с вопросами
-    const renderFaqButtons = (questions) => {
-        chatFaqButtons.innerHTML = questions.map(q =>
-            `<button class="faq-btn" data-question="${q}">${q}</button>`
-        ).join('');
-    };
-
     // Функция открытия чата
-    const openSupportChat = () => {
-        chatMessages.innerHTML = '';
-        addChatMessage('Здравствуйте! Чем могу помочь?');
-        renderFaqButtons(initialFaq);
+    const openSupportChat = async () => {
+        chatMessages.innerHTML = '<div class="chat-loader">Загрузка истории...</div>';
+        chatFaqButtons.innerHTML = ''; // Очищаем кнопки при открытии
         chatInput.value = '';
         supportChatOverlay.classList.remove('hidden');
         tg.HapticFeedback.impactOccurred('light');
+
+        try {
+            // Запрашиваем историю сообщений для этого пользователя
+            const historyData = await fetchData(`/api/admin/chats/${userId}`);
+            chatMessages.innerHTML = ''; // Очищаем лоадер
+
+            if (historyData.messages && historyData.messages.length > 0) {
+                historyData.messages.forEach(msg => addChatMessage(msg.text, msg.sender_type));
+            } else {
+                addChatMessage('Здравствуйте! Чем могу помочь?');
+            }
+
+            // Отправляем сообщение, что пользователь прочитал чат
+            sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
+
+        } catch (e) {
+            chatMessages.innerHTML = '';
+            addChatMessage('Не удалось загрузить историю чата. Попробуйте позже.');
+            console.error("Ошибка загрузки истории чата:", e);
+        }
     };
 
     // Функция закрытия чата
@@ -856,41 +930,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = chatInput.value.trim();
         if (text === '') return;
 
-        addChatMessage(text, 'user');
+        // Отправляем сообщение на сервер через WebSocket
+        sendWsMessage('user_message', { text: text });
         chatInput.value = '';
-        chatFaqButtons.innerHTML = ''; // Скрываем кнопки FAQ после первого ручного ввода
-
-        // Имитация ответа от бэкенда
-        setTimeout(() => {
-            addChatMessage("Спасибо за ваше сообщение! Мы уже ищем свободного оператора, чтобы вам помочь.");
-        }, 1200);
-    };
-
-
-    // Обработчик нажатия на кнопку FAQ
-    const handleFaqClick = (e) => {
-        const btn = e.target.closest('.faq-btn');
-        if (!btn) return;
-
-        const question = btn.dataset.question;
-        addChatMessage(question, 'user');
-
-        chatFaqButtons.innerHTML = '';
-
-        setTimeout(() => {
-            let botResponse = "Ваш запрос принят. Оператор скоро свяжется с вами для уточнения деталей.";
-            addChatMessage(botResponse);
-        }, 1000);
     };
 
     // Навешиваем обработчики событий на элементы чата
     supportChatBtn.addEventListener('click', openSupportChat);
     closeChatBtn.addEventListener('click', closeSupportChat);
-    chatFaqButtons.addEventListener('click', handleFaqClick);
     chatSendBtn.addEventListener('click', sendMessageFromInput);
 
     chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !e.shiftKey) { // Отправка по Enter, перенос по Shift+Enter
             e.preventDefault();
             sendMessageFromInput();
         }
@@ -901,4 +952,10 @@ document.addEventListener('DOMContentLoaded', () => {
             closeSupportChat();
         }
     });
+
+    // --- КОНЕЦ ЗАМЕНЕННОГО БЛОКА ---
+
+    // --- НАЧАЛО ДОПОЛНЕНИЯ: ЗАПУСК WEBSOCKET ---
+    connectWebSocket();
+    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
 });
