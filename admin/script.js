@@ -133,10 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await fetchWithAuth(`/api/admin/chats/${userId}`);
             renderMessages(data.messages);
 
+            // Обновляем счетчик в основном массиве и перерисовываем список
             const chatToUpdate = allChats.find(c => c.user_id == userId);
             if (chatToUpdate) {
                 chatToUpdate.admin_unread_count = 0;
             }
+            renderChatList(); // Перерисовываем, чтобы убрать счетчик
         } catch (error) {
             messagesViewEl.innerHTML = '<p style="text-align:center; color:red;">Не удалось загрузить сообщения</p>';
         }
@@ -169,31 +171,40 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
 
-            // !!! --- НАЧАЛО ИЗМЕНЕНИЙ --- !!!
-            // Игнорируем сообщения от админа, чтобы избежать дублирования
+            // Игнорируем сообщения от самого админа, чтобы избежать дублирования
             if (message.sender_type === 'admin') {
                 console.log('[WS] Игнорируем собственное сообщение от админа.');
                 return;
             }
-            // !!! --- КОНЕЦ ИЗМЕНЕНИЙ --- !!!
 
+            // --- НАЧАЛО НОВОЙ ЛОГИКИ ---
+            const chatIndex = allChats.findIndex(c => c.user_id == message.user_id);
+
+            // Если чата нет в списке (новый пользователь написал), перезагружаем все чаты
+            if (chatIndex === -1) {
+                loadAllChats();
+                return;
+            }
+
+            // Удаляем чат из его текущей позиции
+            const [chatToUpdate] = allChats.splice(chatIndex, 1);
+
+            // Если сообщение пришло в активный чат
             if (message.user_id == currentChatUserId) {
                 addMessageToView(message);
                 messagesViewEl.scrollTop = messagesViewEl.scrollHeight;
-
-                const chatToUpdate = allChats.find(c => c.user_id == message.user_id);
-                 if(chatToUpdate) chatToUpdate.admin_unread_count = 0;
-
+                chatToUpdate.admin_unread_count = 0; // Сразу помечаем как прочитанное
             } else {
-                 const chatToUpdate = allChats.find(c => c.user_id == message.user_id);
-                 if (chatToUpdate) {
-                     chatToUpdate.admin_unread_count = (chatToUpdate.admin_unread_count || 0) + 1;
-                 } else {
-                     loadAllChats();
-                     return;
-                 }
+                // Если сообщение пришло в НЕактивный чат, увеличиваем счетчик
+                chatToUpdate.admin_unread_count = (chatToUpdate.admin_unread_count || 0) + 1;
             }
+
+            // Помещаем обновленный чат в начало массива
+            allChats.unshift(chatToUpdate);
+
+            // Перерисовываем список чатов с новым порядком
             renderChatList();
+            // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
         };
 
         ws.onclose = () => {
@@ -231,5 +242,14 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesViewEl.scrollTop = messagesViewEl.scrollHeight;
 
         replyInput.value = '';
+
+        // --- НАЧАЛО НОВОЙ ЛОГИКИ: ПЕРЕМЕЩЕНИЕ ДИАЛОГА НАВЕРХ ПОСЛЕ ОТВЕТА ---
+        const chatIndex = allChats.findIndex(c => c.user_id == currentChatUserId);
+        if (chatIndex > 0) { // Перемещаем, только если он не был первым
+            const [chatToMove] = allChats.splice(chatIndex, 1);
+            allChats.unshift(chatToMove);
+            renderChatList();
+        }
+        // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
     });
 });
