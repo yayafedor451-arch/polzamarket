@@ -18,10 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentCategory = 'Все';
     let isEditingComposition = false;
 
-    // --- ИЗМЕНЕНИЯ ДЛЯ ЧАТА ---
+    // --- НАЧАЛО ДОПОЛНЕНИЯ: WEBSOCKET ДЛЯ ЧАТА ---
     let ws = null; // Переменная для хранения объекта WebSocket
     let userId = null; // Будем хранить ID пользователя
-    let unreadChatCount = 0; // Переменная для счетчика непрочитанных сообщений
+    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
 
     // НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ ПАГИНАЦИИ
     let currentHistoryOffset = 0; // Отслеживает, сколько заказов уже загружено
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeActiveOrderModalBtn = document.getElementById('close-active-order-modal-btn');
     const activeOrderModalProductsList = document.getElementById('active-order-modal-products-list');
 
-    // ЭЛЕМЕНТЫ ДЛЯ ЧАТА
+    // ИЗМЕНЕНИЕ: ОБНОВЛЕННЫЙ СПИСОК ЭЛЕМЕНТОВ ДЛЯ ЧАТА
     const supportChatBtn = document.getElementById('support-chat-btn');
     const supportChatOverlay = document.getElementById('support-chat-overlay');
     const closeChatBtn = document.getElementById('close-chat-btn');
@@ -89,8 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatFaqButtons = document.getElementById('chat-faq-buttons');
     const chatInput = document.getElementById('chat-input');
     const chatSendBtn = document.getElementById('chat-send-btn');
-    // !!! ИЗМЕНЕНИЕ: Добавляем элемент счетчика !!!
-    const chatNotificationBadge = document.getElementById('chat-notification-badge');
 
 
     // --- ОСНОВНЫЕ ФУНКЦИИ ---
@@ -150,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const loadMoreHistory = async () => {
+        // Если уже идет загрузка или все заказы загружены, ничего не делаем
         if (isHistoryLoading || (currentHistoryOffset > 0 && orderHistory.length >= totalHistoryCount)) {
             return;
         }
@@ -159,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showAllHistoryBtn.textContent = 'Загрузка...';
 
         try {
+            // Запрашиваем новую порцию данных с сервера
             const historyData = await fetchData(`/api/user/orders/history?offset=${currentHistoryOffset}&limit=${HISTORY_PAGE_SIZE}`);
 
             totalHistoryCount = historyData.total_count;
@@ -167,16 +167,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newOrdersStubs.length > 0) {
                 const enrichedOrders = [];
                 for (const orderStub of newOrdersStubs) {
+                     // Запрашиваем полные детали для каждого заказа в полученной порции
                     const fullOrderData = await fetchData(`/api/user/orders/${orderStub.id}`);
                     enrichedOrders.push(await getFullOrderDetails(fullOrderData.order_details));
                 }
+                // Добавляем новые заказы в конец существующего списка
                 orderHistory.push(...enrichedOrders);
                 currentHistoryOffset += HISTORY_PAGE_SIZE;
             }
-            renderOrderHistory();
+
+            renderOrderHistory(); // Перерисовываем всю историю с добавленными элементами
+
         } catch (e) {
             showErrorPopup("Не удалось загрузить историю заказов.");
-            renderOrderHistory();
+            renderOrderHistory(); // Даже в случае ошибки, перерисовываем, чтобы вернуть кнопку в норм. состояние
         } finally {
             isHistoryLoading = false;
             showAllHistoryBtn.disabled = false;
@@ -321,6 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
 
+        // НОВАЯ ЛОГИКА УПРАВЛЕНИЯ КНОПКОЙ
         if (orderHistory.length < totalHistoryCount) {
             showAllHistoryBtn.classList.remove('hidden');
             showAllHistoryBtn.textContent = `Показать еще`;
@@ -413,7 +418,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return { ...order, products: productDetails };
     }
 
-    // !!! ИЗМЕНЕНИЕ: Добавляем сюда вызов функции загрузки состояния чата !!!
     async function initializeAndFetch() {
         const minAnimationDelay = new Promise(resolve => setTimeout(resolve, 2000));
         try {
@@ -427,6 +431,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ]);
 
                 allProducts = productsData.products || [];
+
+                // Сбрасываем состояние истории перед загрузкой
                 orderHistory = [];
                 currentHistoryOffset = 0;
                 totalHistoryCount = 0;
@@ -436,17 +442,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const [{ statusData, pointsData, profileData, activeOrderData }] = await Promise.all([fetchDataPromise, minAnimationDelay]);
 
-            deliveryPoints = pointsData.delivery_points || [];
+            deliveryPoints = pointsData.delivery_points;
             activeOrder = activeOrderData.order ? await getFullOrderDetails(activeOrderData.order) : null;
 
             renderLoyalty(profileData.profile);
             renderActiveOrder(activeOrder);
             renderCategories();
             renderProducts();
-            await loadMoreHistory();
 
-            // Загружаем начальное состояние чата после основной загрузки
-            await loadInitialChatState();
+            // Загружаем ПЕРВУЮ порцию истории
+            await loadMoreHistory();
 
             const statusBadge = document.getElementById('status-badge');
             statusBadge.textContent = statusData.is_open ? '✅ Прием заявок ОТКРЫТ' : '❌ Прием заявок ЗАКРЫТ';
@@ -470,10 +475,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchData('/api/user/orders/active'),
             ]);
 
+            // Сбрасываем состояние истории перед загрузкой
             orderHistory = [];
             currentHistoryOffset = 0;
             totalHistoryCount = 0;
 
+            // Загружаем ПЕРВУЮ порцию истории
             await loadMoreHistory();
 
             activeOrder = activeOrderData.order ? await getFullOrderDetails(activeOrderData.order) : null;
@@ -482,6 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderProducts();
             renderLoyalty(profileData.profile);
             renderActiveOrder(activeOrder);
+            // renderOrderHistory() будет вызван внутри loadMoreHistory
         } catch (err) { showErrorPopup(err.message); }
     }
 
@@ -637,7 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
              submitOrderBtn.textContent = 'Сохранить изменения';
              submitOrderBtn.onclick = () => submitOrder(editMode);
              phoneInput.value = activeOrder['Номер телефона'];
-             deliveryOptions.innerHTML = deliveryPoints.map(point => `<option value="${point.id}">${point.name}</option>`).join('');
+             deliveryOptions.innerHTML = deliveryPoints.map((point, index) => `<option value="${index + 1}">${point}</option>`).join('');
              if(activeOrder.delivery_point_id) {
                  deliveryOptions.value = activeOrder.delivery_point_id;
              }
@@ -645,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modalTitle.textContent = 'Оформление заказа';
             submitOrderBtn.textContent = 'Подтвердить заказ';
             submitOrderBtn.onclick = () => submitOrder('none');
-            deliveryOptions.innerHTML = deliveryPoints.map(point => `<option value="${point.id}">${point.name}</option>`).join('');
+            deliveryOptions.innerHTML = deliveryPoints.map((point, index) => `<option value="${index + 1}">${point}</option>`).join('');
             phoneInput.value = userProfile?.phone_number || '';
         }
         orderModal.classList.remove('hidden');
@@ -679,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeModalBtn.addEventListener('click', () => orderModal.classList.add('hidden'));
 
     document.body.addEventListener('click', async (e) => {
-        if (e.target.id === 'edit-order-composition-btn' || e.target.closest('#edit-order-composition-btn')) {
+        if (e.target.id === 'edit-order-composition-btn') {
             if (!activeOrder) return;
             isEditingComposition = true;
             profileNavLink.classList.add('hidden');
@@ -693,12 +701,12 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast("Редактирование заказа. Измените состав и сохраните в корзине.");
         }
 
-        if (e.target.id === 'edit-order-delivery-btn' || e.target.closest('#edit-order-delivery-btn')) {
+        if (e.target.id === 'edit-order-delivery-btn') {
             if (!activeOrder) return;
             openOrderModal('delivery');
         }
 
-        if (e.target.id === 'show-active-order-details-btn' || e.target.closest('#show-active-order-details-btn')) {
+        if (e.target.id === 'show-active-order-details-btn') {
             if (activeOrder && activeOrder.products) {
                 activeOrderModalProductsList.innerHTML = (activeOrder.products || []).map(p =>
                     `<div class="cart-item">
@@ -716,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (e.target.id === 'cancel-order-btn' || e.target.closest('#cancel-order-btn')) {
+        if (e.target.id === 'cancel-order-btn') {
             tg.showConfirm("Вы уверены, что хотите отменить заказ?", async (confirmed) => {
                 if (confirmed) {
                     try {
@@ -772,19 +780,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- ФУНКЦИИ ДЛЯ РАБОТЫ С WEBSOCKET ---
+    // --- НАЧАЛО ДОПОЛНЕНИЯ: ФУНКЦИИ ДЛЯ РАБОТЫ С WEBSOCKET ---
 
-    // !!! ИЗМЕНЕНИЕ: Новая функция для обновления счетчика !!!
-    const updateChatBadge = () => {
-        if (unreadChatCount > 0) {
-            chatNotificationBadge.textContent = unreadChatCount;
-            chatNotificationBadge.classList.remove('hidden');
-        } else {
-            chatNotificationBadge.classList.add('hidden');
-        }
-    };
-
+    // Функция для установки соединения
     const connectWebSocket = () => {
+        // Получаем user_id из InitData
         try {
             const initData = new URLSearchParams(tg.initData);
             const userData = JSON.parse(initData.get('user'));
@@ -795,9 +795,12 @@ document.addEventListener('DOMContentLoaded', () => {
             userId = userData.id;
         } catch (e) {
             console.error("Ошибка парсинга InitData:", e);
+            // Для локального тестирования без Telegram можно использовать фейковый ID
             if (!userId) userId = '12345_test';
         }
 
+
+        // Формируем правильный URL для WebSocket
         const wsUrl = API_BASE_URL.replace('https', 'wss').replace('http', 'ws') + `/ws/${userId}`;
         ws = new WebSocket(wsUrl);
 
@@ -807,14 +810,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
-
-            // !!! ИЗМЕНЕНИЕ: Логика обновления счетчика !!!
-            if (message.sender_type === 'admin' && supportChatOverlay.classList.contains('hidden')) {
-                unreadChatCount++;
-                updateChatBadge();
-                tg.HapticFeedback.notificationOccurred('success');
-            }
-
+            console.log('[WS] Получено сообщение:', message);
+            // Добавляем полученное сообщение в чат, если чат открыт
             if (!supportChatOverlay.classList.contains('hidden')) {
                 addChatMessage(message.text, message.sender_type);
             }
@@ -822,15 +819,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onclose = () => {
             console.log('[WS] Соединение закрыто. Попытка переподключения через 3 секунды...');
-            setTimeout(connectWebSocket, 3000);
+            setTimeout(connectWebSocket, 3000); // Пытаемся переподключиться
         };
 
         ws.onerror = (error) => {
             console.error('[WS] Произошла ошибка:', error);
-            ws.close();
+            ws.close(); // Закрываем соединение при ошибке, onclose вызовет переподключение
         };
     };
 
+    // Функция для отправки сообщения через WebSocket
     const sendWsMessage = (type, payload) => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             const message = JSON.stringify({ type, ...payload });
@@ -841,9 +839,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
 
-    // --- ЛОГИКА ЧАТА ПОДДЕРЖКИ ---
+    tg.ready();
+    tg.expand();
+    if (tg.isVersionAtLeast('6.1')) { tg.disableVerticalSwipes(); }
+    tg.setHeaderColor('#f4f4f9');
+    tg.onEvent('viewportChanged', () => { if (!tg.isExpanded) { tg.expand(); } });
+    navigateTo('catalog-view');
+    initializeAndFetch();
 
+    // --- БЛОК НИЖЕ БЫЛ ПОЛНОСТЬЮ ЗАМЕНЕН ---
+
+    // --- ЛОГИКА ЧАТА ПОДДЕРЖКИ (РЕАЛЬНАЯ ВЕРСИЯ) ---
+
+    // SVG-аватар оператора
     const operatorAvatarSvg = `
     <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="18" cy="18" r="18" fill="#E0E0E0"/>
@@ -854,6 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
     </svg>`;
 
 
+    // Функция для добавления сообщения в чат
     const addChatMessage = (text, type = 'bot') => {
         const messageEl = document.createElement('div');
         const timestamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -872,7 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(avatarEl);
             container.appendChild(messageEl);
             chatMessages.appendChild(container);
-        } else {
+        } else { // 'user'
             messageEl.classList.add('chat-message', 'user-message');
             messageEl.innerHTML = `${text}<span class="chat-timestamp">${timestamp}</span>`;
             chatMessages.appendChild(messageEl);
@@ -880,20 +891,18 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     };
 
+    // Функция открытия чата
     const openSupportChat = async () => {
-        // !!! ИЗМЕНЕНИЕ: Сбрасываем счетчик и скрываем бейдж при открытии !!!
-        unreadChatCount = 0;
-        updateChatBadge();
-
         chatMessages.innerHTML = '<div class="chat-loader">Загрузка истории...</div>';
-        chatFaqButtons.innerHTML = '';
+        chatFaqButtons.innerHTML = ''; // Очищаем кнопки при открытии
         chatInput.value = '';
         supportChatOverlay.classList.remove('hidden');
         tg.HapticFeedback.impactOccurred('light');
 
         try {
+            // Запрашиваем историю сообщений для этого пользователя
             const historyData = await fetchData(`/api/admin/chats/${userId}`);
-            chatMessages.innerHTML = '';
+            chatMessages.innerHTML = ''; // Очищаем лоадер
 
             if (historyData.messages && historyData.messages.length > 0) {
                 historyData.messages.forEach(msg => addChatMessage(msg.text, msg.sender_type));
@@ -901,6 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 addChatMessage('Здравствуйте! Чем могу помочь?');
             }
 
+            // Отправляем сообщение, что пользователь прочитал чат
             sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
 
         } catch (e) {
@@ -910,23 +920,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Функция закрытия чата
     const closeSupportChat = () => {
         supportChatOverlay.classList.add('hidden');
     };
 
+    // Функция отправки сообщения из поля ввода
     const sendMessageFromInput = () => {
         const text = chatInput.value.trim();
         if (text === '') return;
+
+        // Отправляем сообщение на сервер через WebSocket
         sendWsMessage('user_message', { text: text });
         chatInput.value = '';
     };
 
+    // Навешиваем обработчики событий на элементы чата
     supportChatBtn.addEventListener('click', openSupportChat);
     closeChatBtn.addEventListener('click', closeSupportChat);
     chatSendBtn.addEventListener('click', sendMessageFromInput);
 
     chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && !e.shiftKey) { // Отправка по Enter, перенос по Shift+Enter
             e.preventDefault();
             sendMessageFromInput();
         }
@@ -938,29 +953,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // !!! ИЗМЕНЕНИЕ: Новая функция для загрузки начального состояния чата !!!
-    async function loadInitialChatState() {
-        if (!userId) return; // Не делаем запрос, если нет ID пользователя
-        try {
-            const chatStatus = await fetchData(`/api/user/chat/status`);
-            if (chatStatus && chatStatus.unread_count > 0) {
-                unreadChatCount = chatStatus.unread_count;
-                updateChatBadge();
-            }
-        } catch(e) {
-            console.error("Не удалось загрузить начальное состояние чата", e);
-        }
-    }
+    // --- КОНЕЦ ЗАМЕНЕННОГО БЛОКА ---
 
-    // --- ЗАПУСК ПРИЛОЖЕНИЯ ---
-    tg.ready();
-    tg.expand();
-    if (tg.isVersionAtLeast('6.1')) { tg.disableVerticalSwipes(); }
-    tg.setHeaderColor('#f4f4f9');
-    tg.onEvent('viewportChanged', () => { if (!tg.isExpanded) { tg.expand(); } });
-    navigateTo('catalog-view');
-
-    // Инициализируем все и запускаем WebSocket
-    initializeAndFetch();
+    // --- НАЧАЛО ДОПОЛНЕНИЯ: ЗАПУСК WEBSOCKET ---
     connectWebSocket();
+    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
 });

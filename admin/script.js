@@ -19,8 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const messagesViewEl = document.getElementById('messages-view');
     const replyForm = document.getElementById('reply-area');
     const replyInput = document.getElementById('reply-input');
-    const togglePassword = document.getElementById('toggle-password');
-
 
     // --- Глобальное состояние ---
     let ws = null;
@@ -45,14 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Логика для переключения видимости пароля
-    togglePassword.addEventListener('click', function () {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        this.classList.toggle('fa-eye-slash');
-    });
-
-
     // --- ОСНОВНАЯ ЛОГИКА АДМИНКИ ---
     function initializeAdminPanel() {
         loadAllChats();
@@ -73,23 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Функция сортировки чатов
-    function sortChats() {
-        allChats.sort((a, b) => {
-            const a_unread = a.admin_unread_count > 0;
-            const b_unread = b.admin_unread_count > 0;
-            if (a_unread && !b_unread) return -1;
-            if (!a_unread && b_unread) return 1;
-            return new Date(b.last_message_at) - new Date(a.last_message_at);
-        });
-    }
-
     // 1. Загрузка и отображение списка чатов
     async function loadAllChats() {
         try {
             const data = await fetchWithAuth('/api/admin/chats');
             allChats = data.chats || [];
-            sortChats();
             renderChatList();
         } catch (error) {
             chatListEl.innerHTML = '<p style="text-align:center; color:red;">Ошибка загрузки</p>';
@@ -127,9 +105,10 @@ document.addEventListener('DOMContentLoaded', () => {
         chatListEl.scrollTop = scrollPosition;
     }
 
-    // 2. Загрузка истории выбранного чата
+    // 2. Загрузка истории выбранного чата (версия с ручным обновлением UI)
     async function loadChatHistory(userId) {
         if (currentChatUserId === userId) return;
+
         currentChatUserId = userId;
 
         const oldActive = chatListEl.querySelector('.active');
@@ -153,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const data = await fetchWithAuth(`/api/admin/chats/${userId}`);
             renderMessages(data.messages);
+
             const chatToUpdate = allChats.find(c => c.user_id == userId);
             if (chatToUpdate) {
                 chatToUpdate.admin_unread_count = 0;
@@ -171,8 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function addMessageToView(message) {
         const msgEl = document.createElement('div');
         msgEl.className = `chat-message ${message.sender_type === 'admin' ? 'admin-message' : 'user-message'}`;
+
         const date = new Date(message.timestamp);
         const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
         msgEl.innerHTML = `${message.text}<span class="timestamp">${time}</span>`;
         messagesViewEl.appendChild(msgEl);
     }
@@ -186,29 +168,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
+
+            // !!! --- НАЧАЛО ИЗМЕНЕНИЙ --- !!!
+            // Игнорируем сообщения от админа, чтобы избежать дублирования
             if (message.sender_type === 'admin') {
+                console.log('[WS] Игнорируем собственное сообщение от админа.');
                 return;
             }
-
-            const chatToUpdate = allChats.find(c => c.user_id == message.user_id);
+            // !!! --- КОНЕЦ ИЗМЕНЕНИЙ --- !!!
 
             if (message.user_id == currentChatUserId) {
                 addMessageToView(message);
                 messagesViewEl.scrollTop = messagesViewEl.scrollHeight;
-                if (chatToUpdate) {
-                    chatToUpdate.admin_unread_count = 0;
-                    chatToUpdate.last_message_at = new Date().toISOString();
-                }
+
+                const chatToUpdate = allChats.find(c => c.user_id == message.user_id);
+                 if(chatToUpdate) chatToUpdate.admin_unread_count = 0;
+
             } else {
+                 const chatToUpdate = allChats.find(c => c.user_id == message.user_id);
                  if (chatToUpdate) {
                      chatToUpdate.admin_unread_count = (chatToUpdate.admin_unread_count || 0) + 1;
-                     chatToUpdate.last_message_at = new Date().toISOString();
                  } else {
                      loadAllChats();
                      return;
                  }
             }
-            sortChats();
             renderChatList();
         };
 
@@ -245,13 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
             timestamp: new Date().toISOString()
         });
         messagesViewEl.scrollTop = messagesViewEl.scrollHeight;
-
-        const chatToUpdate = allChats.find(c => c.user_id == currentChatUserId);
-        if (chatToUpdate) {
-            chatToUpdate.last_message_at = new Date().toISOString();
-            sortChats();
-            renderChatList();
-        }
 
         replyInput.value = '';
     });
