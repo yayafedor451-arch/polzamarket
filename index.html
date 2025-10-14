@@ -18,10 +18,13 @@
         <section id="catalog-view" class="view active">
             <header class="app-header">
                 <h1>Каталог</h1>
-                <!-- ИЗМЕНЕНИЕ: ДОБАВЛЕНА ИКОНКА ДЛЯ ВЫЗОВА ЧАТА -->
+                <!-- !!! НАЧАЛО ИЗМЕНЕНИЙ !!! -->
                 <div id="support-chat-btn" class="support-icon">
-                    <i class="fas fa-microphone"></i>
+                    <i class="fas fa-wrench"></i>
+                    <!-- Добавляем счетчик, который по умолчанию скрыт -->
+                    <span id="chat-notification-badge" class="chat-badge hidden">0</span>
                 </div>
+                <!-- !!! КОНЕЦ ИЗМЕНЕНИЙ !!! -->
                 <div id="status-badge">Загрузка...</div>
             </header>
             <div id="category-pills-container" class="category-pills">
