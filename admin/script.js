@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderChatList() {
+        const scrollPosition = chatListEl.scrollTop;
         chatListEl.innerHTML = '';
         if (allChats.length === 0) {
             chatListEl.innerHTML = '<p style="text-align:center;">Нет активных диалогов</p>';
@@ -101,14 +102,25 @@ document.addEventListener('DOMContentLoaded', () => {
             item.addEventListener('click', () => loadChatHistory(chat.user_id));
             chatListEl.appendChild(item);
         });
+        chatListEl.scrollTop = scrollPosition;
     }
 
-    // 2. Загрузка истории выбранного чата
+    // 2. Загрузка истории выбранного чата (версия с ручным обновлением UI)
     async function loadChatHistory(userId) {
         if (currentChatUserId === userId) return;
 
         currentChatUserId = userId;
-        renderChatList();
+
+        const oldActive = chatListEl.querySelector('.active');
+        if (oldActive) oldActive.classList.remove('active');
+
+        const newActive = chatListEl.querySelector(`.chat-list-item[data-user-id='${userId}']`);
+        if (newActive) {
+            newActive.classList.add('active');
+            const counter = newActive.querySelector('.unread-counter');
+            if (counter) counter.classList.add('hidden');
+            newActive.classList.remove('unread');
+        }
 
         chatViewPlaceholder.classList.add('hidden');
         activeChatView.classList.remove('hidden');
@@ -120,11 +132,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const data = await fetchWithAuth(`/api/admin/chats/${userId}`);
             renderMessages(data.messages);
+
             const chatToUpdate = allChats.find(c => c.user_id == userId);
             if (chatToUpdate) {
                 chatToUpdate.admin_unread_count = 0;
             }
-            renderChatList();
         } catch (error) {
             messagesViewEl.innerHTML = '<p style="text-align:center; color:red;">Не удалось загрузить сообщения</p>';
         }
@@ -157,13 +169,31 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
 
+            // !!! --- НАЧАЛО ИЗМЕНЕНИЙ --- !!!
+            // Игнорируем сообщения от админа, чтобы избежать дублирования
+            if (message.sender_type === 'admin') {
+                console.log('[WS] Игнорируем собственное сообщение от админа.');
+                return;
+            }
+            // !!! --- КОНЕЦ ИЗМЕНЕНИЙ --- !!!
+
             if (message.user_id == currentChatUserId) {
                 addMessageToView(message);
                 messagesViewEl.scrollTop = messagesViewEl.scrollHeight;
-            }
 
-            // Всегда обновляем список чатов, чтобы показать индикатор
-            loadAllChats();
+                const chatToUpdate = allChats.find(c => c.user_id == message.user_id);
+                 if(chatToUpdate) chatToUpdate.admin_unread_count = 0;
+
+            } else {
+                 const chatToUpdate = allChats.find(c => c.user_id == message.user_id);
+                 if (chatToUpdate) {
+                     chatToUpdate.admin_unread_count = (chatToUpdate.admin_unread_count || 0) + 1;
+                 } else {
+                     loadAllChats();
+                     return;
+                 }
+            }
+            renderChatList();
         };
 
         ws.onclose = () => {
@@ -193,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.send(JSON.stringify(messagePayload));
 
-        // Оптимистично добавляем свое же сообщение в интерфейс, не дожидаясь ответа сервера
         addMessageToView({
             text,
             sender_type: 'admin',
