@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель | Чаты поддержки</title>
+    <!-- Иконки Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <!-- Подключение файла стилей -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ЭКРАН ВХОДА С ПАРОЛЕМ -->
+    <div id="login-screen">
+        <div id="login-box">
+            <h2><i class="fas fa-lock"></i> Админ-панель</h2>
+            <form id="login-form">
+                <input type="password" id="password-input" placeholder="Код доступа" autocomplete="current-password">
+                <button type="submit" id="login-btn">Войти</button>
+                <p id="login-error"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- ОСНОВНАЯ ПАНЕЛЬ УПРАВЛЕНИЯ ЧАТАМИ (скрыта по умолчанию) -->
+    <main id="admin-panel" class="hidden">
+        <!-- Левая колонка -->
+        <aside id="chat-list-container">
+            <header id="chat-list-header">
+                <h2>Диалоги</h2>
+            </header>
+            <div id="chat-list">
+                <!-- Сюда JS загрузит список чатов -->
+                <div class="loader"></div>
+            </div>
+        </aside>
+
+        <!-- Правая колонка -->
+        <section id="chat-view-container">
+            <div id="chat-view-placeholder">
+                <p>Выберите диалог слева, чтобы начать</p>
+            </div>
+            <div id="active-chat-view" class="hidden">
+                <header id="chat-header">
+                    <h3 id="current-chat-username">Имя пользователя</h3>
+                </header>
+                <div id="messages-view">
+                    <!-- Сюда JS загрузит историю сообщений -->
+                </div>
+                <form id="reply-area">
+                    <input type="text" id="reply-input" placeholder="Введите ответ..." autocomplete="off">
+                    <button type="submit" id="send-reply-btn">Отправить</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- Подключение файла JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
