@@ -459,7 +459,7 @@ h2 {
 
 .support-icon .cart-badge {
     top: -5px;
-    right: -8px;
+    left: -8px; /* <-- ИЗМЕНЕНИЕ ЗДЕСЬ */
 }
 
 .chat-overlay {
