@@ -90,6 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
     const chatSendBtn = document.getElementById('chat-send-btn');
 
+    // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+    // 1. Добавляем элемент бейджа в список
+    const supportBadge = document.getElementById('support-badge');
+    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
 
     // --- ОСНОВНЫЕ ФУНКЦИИ ---
     const navigateTo = (viewId) => {
@@ -103,6 +108,20 @@ document.addEventListener('DOMContentLoaded', () => {
         cartBadge.textContent = totalItems;
         cartBadge.classList.toggle('hidden', totalItems === 0);
     };
+
+    // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+    // 2. Создаем функцию для обновления бейджа техподдержки
+    const updateSupportBadge = (count) => {
+        const countNum = parseInt(count, 10);
+        if (isNaN(countNum) || countNum <= 0) {
+            supportBadge.classList.add('hidden');
+            supportBadge.textContent = '0';
+        } else {
+            supportBadge.textContent = countNum;
+            supportBadge.classList.remove('hidden');
+        }
+    };
+    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     const showErrorPopup = (message) => tg.showAlert(message);
 
@@ -446,6 +465,10 @@ document.addEventListener('DOMContentLoaded', () => {
             activeOrder = activeOrderData.order ? await getFullOrderDetails(activeOrderData.order) : null;
 
             renderLoyalty(profileData.profile);
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            // 3. После получения данных о профиле, обновляем бейдж
+            updateSupportBadge(profileData.profile.unread_messages);
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
             renderActiveOrder(activeOrder);
             renderCategories();
             renderProducts();
@@ -488,6 +511,10 @@ document.addEventListener('DOMContentLoaded', () => {
             profileNavLink.classList.remove('hidden');
             renderProducts();
             renderLoyalty(profileData.profile);
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            // 4. И здесь тоже обновляем бейдж при переключении на вкладку
+            updateSupportBadge(profileData.profile.unread_messages);
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
             renderActiveOrder(activeOrder);
             // renderOrderHistory() будет вызван внутри loadMoreHistory
         } catch (err) { showErrorPopup(err.message); }
@@ -910,8 +937,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 addChatMessage('Здравствуйте! Чем могу помочь?');
             }
 
-            // Отправляем сообщение, что пользователь прочитал чат
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            // 5. Модифицируем функцию открытия чата, чтобы сбрасывать счетчик
+            // Сразу скрываем бейдж на фронте и отправляем запрос на сброс в БД
+            updateSupportBadge(0);
             sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         } catch (e) {
             chatMessages.innerHTML = '';
