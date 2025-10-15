@@ -448,9 +448,6 @@ h2 {
     justify-content: center;
     cursor: pointer;
     transition: transform 0.2s ease;
-    /* --- НАЧАЛО ИЗМЕНЕНИЙ --- */
-    position: relative; /* Добавляем, чтобы позиционировать бейдж */
-    /* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
 }
 .support-icon:active {
     transform: translateY(-50%) scale(0.9);
@@ -460,13 +457,10 @@ h2 {
     font-size: 16px;
 }
 
-/* --- НАЧАЛО ИЗМЕНЕНИЙ --- */
-/* Новый стиль для позиционирования бейджа на иконке техподдержки */
 .support-icon .cart-badge {
     top: -5px;
     right: -8px;
 }
-/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
 
 .chat-overlay {
     position: fixed;
