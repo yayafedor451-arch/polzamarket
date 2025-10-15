@@ -13,23 +13,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let deliveryPoints = [];
     let activeOrder = null;
     let userProfile = null;
-    let orderHistory = []; // Изначально пустой массив
+    let orderHistory = [];
     let toastTimer = null;
     let currentCategory = 'Все';
     let isEditingComposition = false;
-    let unreadSupportMessages = 0; // <-- ИЗМЕНЕНИЕ 1: Добавлена переменная для счетчика
+    let unreadSupportMessages = 0; // <-- Переменная для локального счетчика
 
-    // --- НАЧАЛО ДОПОЛНЕНИЯ: WEBSOCKET ДЛЯ ЧАТА ---
-    let ws = null; // Переменная для хранения объекта WebSocket
-    let userId = null; // Будем хранить ID пользователя
-    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
+    // --- WEBSOCKET ДЛЯ ЧАТА ---
+    let ws = null;
+    let userId = null;
 
-    // НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ ПАГИНАЦИИ
-    let currentHistoryOffset = 0; // Отслеживает, сколько заказов уже загружено
-    let totalHistoryCount = 0;    // Хранит общее количество заказов на сервере
-    let isHistoryLoading = false; // Флаг, чтобы не запускать загрузку дважды
-    const HISTORY_PAGE_SIZE = 5;  // Константа, сколько грузить за раз
-
+    // ПАГИНАЦИЯ
+    let currentHistoryOffset = 0;
+    let totalHistoryCount = 0;
+    let isHistoryLoading = false;
+    const HISTORY_PAGE_SIZE = 5;
 
     // --- Смайлики для категорий ---
     const categoryEmojis = {
@@ -76,13 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const historyModalCollage = document.getElementById('history-modal-collage-container');
     const historyModalInfo = document.getElementById('history-modal-info');
     const historyModalProductsList = document.getElementById('history-modal-products-list');
-
-    // НОВЫЕ ЭЛЕМЕНТЫ МОДАЛЬНОГО ОКНА АКТИВНОГО ЗАКАЗА
     const activeOrderDetailModal = document.getElementById('active-order-detail-modal');
     const closeActiveOrderModalBtn = document.getElementById('close-active-order-modal-btn');
     const activeOrderModalProductsList = document.getElementById('active-order-modal-products-list');
-
-    // ИЗМЕНЕНИЕ: ОБНОВЛЕННЫЙ СПИСОК ЭЛЕМЕНТОВ ДЛЯ ЧАТА
     const supportChatBtn = document.getElementById('support-chat-btn');
     const supportChatOverlay = document.getElementById('support-chat-overlay');
     const closeChatBtn = document.getElementById('close-chat-btn');
@@ -453,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderLoyalty(profileData.profile);
 
-            // <-- ИЗМЕНЕНИЕ 2: Инициализируем счетчик при первой загрузке
+            // <-- ИЗМЕНЕНИЕ: Инициализируем счетчик при первой загрузке
             unreadSupportMessages = profileData.profile.unread_messages || 0;
             updateSupportBadge(unreadSupportMessages);
 
@@ -497,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderProducts();
             renderLoyalty(profileData.profile);
 
-            // <-- ИЗМЕНЕНИЕ 3: Инициализируем счетчик при переключении на профиль
+            // <-- ИЗМЕНЕНИЕ: Инициализируем счетчик при переключении на профиль
             unreadSupportMessages = profileData.profile.unread_messages || 0;
             updateSupportBadge(unreadSupportMessages);
 
@@ -812,25 +806,20 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[WS] Соединение установлено');
         };
 
-        // <-- ИЗМЕНЕНИЕ 4: Новый обработчик входящих WebSocket-сообщений
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
             console.log('[WS] Получено сообщение:', message);
 
-            // Проверяем, что сообщение от администратора (или бота)
             if (message.sender_type === 'admin' || message.sender_type === 'bot') {
-                // Если чат закрыт, увеличиваем счетчик и обновляем значок
                 if (supportChatOverlay.classList.contains('hidden')) {
                     unreadSupportMessages++;
                     updateSupportBadge(unreadSupportMessages);
-                    tg.HapticFeedback.notificationOccurred('success'); // Добавляем вибрацию для уведомления
+                    tg.HapticFeedback.notificationOccurred('success');
                 } else {
-                    // Если чат открыт, сбрасываем счетчик в БД, так как пользователь видит сообщение
                     sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
                 }
             }
 
-            // Добавляем сообщение в окно чата, если оно открыто (эта логика остается)
             if (!supportChatOverlay.classList.contains('hidden')) {
                 addChatMessage(message.text, message.sender_type);
             }
@@ -900,7 +889,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     };
 
-    // <-- ИЗМЕНЕНИЕ 5: Обновленная функция открытия чата
     const openSupportChat = async () => {
         chatMessages.innerHTML = '<div class="chat-loader">Загрузка истории...</div>';
         chatFaqButtons.innerHTML = '';
@@ -918,10 +906,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 addChatMessage('Здравствуйте! Чем могу помочь?');
             }
 
-            // Сбрасываем локальный счетчик и обновляем интерфейс
+            // <-- ИЗМЕНЕНИЕ: Сбрасываем счетчик при открытии
             unreadSupportMessages = 0;
             updateSupportBadge(unreadSupportMessages);
-            // Отправляем на сервер информацию, что сообщения прочитаны
             sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
 
         } catch (e) {
