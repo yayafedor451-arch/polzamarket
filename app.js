@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let toastTimer = null;
     let currentCategory = 'Все';
     let isEditingComposition = false;
+    let unreadSupportMessages = 0; // <-- ИЗМЕНЕНИЕ 1: Добавлена переменная для счетчика
 
     // --- НАЧАЛО ДОПОЛНЕНИЯ: WEBSOCKET ДЛЯ ЧАТА ---
     let ws = null; // Переменная для хранения объекта WebSocket
@@ -89,11 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatFaqButtons = document.getElementById('chat-faq-buttons');
     const chatInput = document.getElementById('chat-input');
     const chatSendBtn = document.getElementById('chat-send-btn');
-
-    // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-    // 1. Добавляем элемент бейджа в список
     const supportBadge = document.getElementById('support-badge');
-    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
 
     // --- ОСНОВНЫЕ ФУНКЦИИ ---
@@ -109,8 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
         cartBadge.classList.toggle('hidden', totalItems === 0);
     };
 
-    // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-    // 2. Создаем функцию для обновления бейджа техподдержки
     const updateSupportBadge = (count) => {
         const countNum = parseInt(count, 10);
         if (isNaN(countNum) || countNum <= 0) {
@@ -121,7 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
             supportBadge.classList.remove('hidden');
         }
     };
-    // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     const showErrorPopup = (message) => tg.showAlert(message);
 
@@ -167,7 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const loadMoreHistory = async () => {
-        // Если уже идет загрузка или все заказы загружены, ничего не делаем
         if (isHistoryLoading || (currentHistoryOffset > 0 && orderHistory.length >= totalHistoryCount)) {
             return;
         }
@@ -177,7 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showAllHistoryBtn.textContent = 'Загрузка...';
 
         try {
-            // Запрашиваем новую порцию данных с сервера
             const historyData = await fetchData(`/api/user/orders/history?offset=${currentHistoryOffset}&limit=${HISTORY_PAGE_SIZE}`);
 
             totalHistoryCount = historyData.total_count;
@@ -186,20 +178,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newOrdersStubs.length > 0) {
                 const enrichedOrders = [];
                 for (const orderStub of newOrdersStubs) {
-                     // Запрашиваем полные детали для каждого заказа в полученной порции
                     const fullOrderData = await fetchData(`/api/user/orders/${orderStub.id}`);
                     enrichedOrders.push(await getFullOrderDetails(fullOrderData.order_details));
                 }
-                // Добавляем новые заказы в конец существующего списка
                 orderHistory.push(...enrichedOrders);
                 currentHistoryOffset += HISTORY_PAGE_SIZE;
             }
 
-            renderOrderHistory(); // Перерисовываем всю историю с добавленными элементами
+            renderOrderHistory();
 
         } catch (e) {
             showErrorPopup("Не удалось загрузить историю заказов.");
-            renderOrderHistory(); // Даже в случае ошибки, перерисовываем, чтобы вернуть кнопку в норм. состояние
+            renderOrderHistory();
         } finally {
             isHistoryLoading = false;
             showAllHistoryBtn.disabled = false;
@@ -344,7 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
 
-        // НОВАЯ ЛОГИКА УПРАВЛЕНИЯ КНОПКОЙ
         if (orderHistory.length < totalHistoryCount) {
             showAllHistoryBtn.classList.remove('hidden');
             showAllHistoryBtn.textContent = `Показать еще`;
@@ -450,8 +439,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 ]);
 
                 allProducts = productsData.products || [];
-
-                // Сбрасываем состояние истории перед загрузкой
                 orderHistory = [];
                 currentHistoryOffset = 0;
                 totalHistoryCount = 0;
@@ -465,15 +452,15 @@ document.addEventListener('DOMContentLoaded', () => {
             activeOrder = activeOrderData.order ? await getFullOrderDetails(activeOrderData.order) : null;
 
             renderLoyalty(profileData.profile);
-            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-            // 3. После получения данных о профиле, обновляем бейдж
-            updateSupportBadge(profileData.profile.unread_messages);
-            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
+            // <-- ИЗМЕНЕНИЕ 2: Инициализируем счетчик при первой загрузке
+            unreadSupportMessages = profileData.profile.unread_messages || 0;
+            updateSupportBadge(unreadSupportMessages);
+
             renderActiveOrder(activeOrder);
             renderCategories();
             renderProducts();
 
-            // Загружаем ПЕРВУЮ порцию истории
             await loadMoreHistory();
 
             const statusBadge = document.getElementById('status-badge');
@@ -498,12 +485,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchData('/api/user/orders/active'),
             ]);
 
-            // Сбрасываем состояние истории перед загрузкой
             orderHistory = [];
             currentHistoryOffset = 0;
             totalHistoryCount = 0;
 
-            // Загружаем ПЕРВУЮ порцию истории
             await loadMoreHistory();
 
             activeOrder = activeOrderData.order ? await getFullOrderDetails(activeOrderData.order) : null;
@@ -511,12 +496,12 @@ document.addEventListener('DOMContentLoaded', () => {
             profileNavLink.classList.remove('hidden');
             renderProducts();
             renderLoyalty(profileData.profile);
-            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-            // 4. И здесь тоже обновляем бейдж при переключении на вкладку
-            updateSupportBadge(profileData.profile.unread_messages);
-            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
+            // <-- ИЗМЕНЕНИЕ 3: Инициализируем счетчик при переключении на профиль
+            unreadSupportMessages = profileData.profile.unread_messages || 0;
+            updateSupportBadge(unreadSupportMessages);
+
             renderActiveOrder(activeOrder);
-            // renderOrderHistory() будет вызван внутри loadMoreHistory
         } catch (err) { showErrorPopup(err.message); }
     }
 
@@ -770,7 +755,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Код для свайпов и инициализации приложения
     let touchStartX = 0, touchEndX = 0, touchStartY = 0, touchEndY = 0;
     const catalogView = document.getElementById('catalog-view');
     catalogView.addEventListener('touchstart', e => {
@@ -807,11 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- НАЧАЛО ДОПОЛНЕНИЯ: ФУНКЦИИ ДЛЯ РАБОТЫ С WEBSOCKET ---
-
-    // Функция для установки соединения
     const connectWebSocket = () => {
-        // Получаем user_id из InitData
         try {
             const initData = new URLSearchParams(tg.initData);
             const userData = JSON.parse(initData.get('user'));
@@ -822,12 +802,9 @@ document.addEventListener('DOMContentLoaded', () => {
             userId = userData.id;
         } catch (e) {
             console.error("Ошибка парсинга InitData:", e);
-            // Для локального тестирования без Telegram можно использовать фейковый ID
             if (!userId) userId = '12345_test';
         }
 
-
-        // Формируем правильный URL для WebSocket
         const wsUrl = API_BASE_URL.replace('https', 'wss').replace('http', 'ws') + `/ws/${userId}`;
         ws = new WebSocket(wsUrl);
 
@@ -835,10 +812,25 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[WS] Соединение установлено');
         };
 
+        // <-- ИЗМЕНЕНИЕ 4: Новый обработчик входящих WebSocket-сообщений
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
             console.log('[WS] Получено сообщение:', message);
-            // Добавляем полученное сообщение в чат, если чат открыт
+
+            // Проверяем, что сообщение от администратора (или бота)
+            if (message.sender_type === 'admin' || message.sender_type === 'bot') {
+                // Если чат закрыт, увеличиваем счетчик и обновляем значок
+                if (supportChatOverlay.classList.contains('hidden')) {
+                    unreadSupportMessages++;
+                    updateSupportBadge(unreadSupportMessages);
+                    tg.HapticFeedback.notificationOccurred('success'); // Добавляем вибрацию для уведомления
+                } else {
+                    // Если чат открыт, сбрасываем счетчик в БД, так как пользователь видит сообщение
+                    sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
+                }
+            }
+
+            // Добавляем сообщение в окно чата, если оно открыто (эта логика остается)
             if (!supportChatOverlay.classList.contains('hidden')) {
                 addChatMessage(message.text, message.sender_type);
             }
@@ -846,16 +838,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onclose = () => {
             console.log('[WS] Соединение закрыто. Попытка переподключения через 3 секунды...');
-            setTimeout(connectWebSocket, 3000); // Пытаемся переподключиться
+            setTimeout(connectWebSocket, 3000);
         };
 
         ws.onerror = (error) => {
             console.error('[WS] Произошла ошибка:', error);
-            ws.close(); // Закрываем соединение при ошибке, onclose вызовет переподключение
+            ws.close();
         };
     };
 
-    // Функция для отправки сообщения через WebSocket
     const sendWsMessage = (type, payload) => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             const message = JSON.stringify({ type, ...payload });
@@ -866,8 +857,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
-
     tg.ready();
     tg.expand();
     if (tg.isVersionAtLeast('6.1')) { tg.disableVerticalSwipes(); }
@@ -876,11 +865,6 @@ document.addEventListener('DOMContentLoaded', () => {
     navigateTo('catalog-view');
     initializeAndFetch();
 
-    // --- БЛОК НИЖЕ БЫЛ ПОЛНОСТЬЮ ЗАМЕНЕН ---
-
-    // --- ЛОГИКА ЧАТА ПОДДЕРЖКИ (РЕАЛЬНАЯ ВЕРСИЯ) ---
-
-    // SVG-аватар оператора
     const operatorAvatarSvg = `
     <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="18" cy="18" r="18" fill="#E0E0E0"/>
@@ -890,8 +874,6 @@ document.addEventListener('DOMContentLoaded', () => {
         <circle cx="7" cy="23" r="2" fill="#757575"/>
     </svg>`;
 
-
-    // Функция для добавления сообщения в чат
     const addChatMessage = (text, type = 'bot') => {
         const messageEl = document.createElement('div');
         const timestamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -918,18 +900,17 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     };
 
-    // Функция открытия чата
+    // <-- ИЗМЕНЕНИЕ 5: Обновленная функция открытия чата
     const openSupportChat = async () => {
         chatMessages.innerHTML = '<div class="chat-loader">Загрузка истории...</div>';
-        chatFaqButtons.innerHTML = ''; // Очищаем кнопки при открытии
+        chatFaqButtons.innerHTML = '';
         chatInput.value = '';
         supportChatOverlay.classList.remove('hidden');
         tg.HapticFeedback.impactOccurred('light');
 
         try {
-            // Запрашиваем историю сообщений для этого пользователя
             const historyData = await fetchData(`/api/admin/chats/${userId}`);
-            chatMessages.innerHTML = ''; // Очищаем лоадер
+            chatMessages.innerHTML = '';
 
             if (historyData.messages && historyData.messages.length > 0) {
                 historyData.messages.forEach(msg => addChatMessage(msg.text, msg.sender_type));
@@ -937,12 +918,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 addChatMessage('Здравствуйте! Чем могу помочь?');
             }
 
-            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
-            // 5. Модифицируем функцию открытия чата, чтобы сбрасывать счетчик
-            // Сразу скрываем бейдж на фронте и отправляем запрос на сброс в БД
-            updateSupportBadge(0);
+            // Сбрасываем локальный счетчик и обновляем интерфейс
+            unreadSupportMessages = 0;
+            updateSupportBadge(unreadSupportMessages);
+            // Отправляем на сервер информацию, что сообщения прочитаны
             sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
-            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         } catch (e) {
             chatMessages.innerHTML = '';
@@ -951,28 +931,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Функция закрытия чата
     const closeSupportChat = () => {
         supportChatOverlay.classList.add('hidden');
     };
 
-    // Функция отправки сообщения из поля ввода
     const sendMessageFromInput = () => {
         const text = chatInput.value.trim();
         if (text === '') return;
-
-        // Отправляем сообщение на сервер через WebSocket
         sendWsMessage('user_message', { text: text });
         chatInput.value = '';
     };
 
-    // Навешиваем обработчики событий на элементы чата
     supportChatBtn.addEventListener('click', openSupportChat);
     closeChatBtn.addEventListener('click', closeSupportChat);
     chatSendBtn.addEventListener('click', sendMessageFromInput);
 
     chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) { // Отправка по Enter, перенос по Shift+Enter
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessageFromInput();
         }
@@ -984,9 +959,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- КОНЕЦ ЗАМЕНЕННОГО БЛОКА ---
-
-    // --- НАЧАЛО ДОПОЛНЕНИЯ: ЗАПУСК WEBSOCKET ---
     connectWebSocket();
-    // --- КОНЕЦ ДОПОЛНЕНИЯ ---
 });
