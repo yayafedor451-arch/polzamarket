@@ -1,9 +1,9 @@
-// Файл: app.js (Версия с пагинацией истории заказов и РЕАЛЬНЫМ ЧАТОМ)
+// Файл: app.js (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- НАСТРОЙКИ ---
-    const API_BASE_URL = 'https://efficiently-exulting-horntail.cloudpub.ru:443';
+    const API_BASE_URL = 'https://devoutly-pragmatic-louse.cloudpub.ru:443';
     const API_KEY = 'your-super-secret-and-long-api-key-12345';
     const tg = window.Telegram.WebApp;
 
@@ -192,16 +192,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- РЕНДЕР ФУНКЦИИ ---
+
+    // --- НАЧАЛО БЛОКА ИЗМЕНЕНИЙ ---
     const formatWeight = (weightStr) => {
         if (!weightStr) return '';
+
+        // Новая проверка: если в строке уже есть буквы (например, "1 л" или "5 шт"),
+        // то выводим ее как есть, ничего не добавляя.
+        if (/[а-яА-Яa-zA-Z]/.test(weightStr)) {
+            return weightStr;
+        }
+
+        // Старая логика для диапазонов веса (например, "500/600")
         if (weightStr.includes('/')) {
             const parts = weightStr.split('/');
             const unit = weightStr.includes('.') ? 'кг' : 'г';
             return `~ ${parts[0]}-${parts[1]} ${unit}`;
         }
+
+        // Старая логика для простого веса (например, "700" или "1.2")
         const unit = weightStr.includes('.') ? 'кг' : 'г';
         return `${weightStr} ${unit}`;
     };
+    // --- КОНЕЦ БЛОКА ИЗМЕНЕНИЙ ---
 
     const renderCategories = () => {
         const categories = ['Все', ...new Set(allProducts.map(p => p.category))];
