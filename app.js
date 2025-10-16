@@ -193,28 +193,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- РЕНДЕР ФУНКЦИИ ---
 
-    // --- НАЧАЛО БЛОКА ИЗМЕНЕНИЙ ---
     const formatWeight = (weightStr) => {
         if (!weightStr) return '';
 
-        // Новая проверка: если в строке уже есть буквы (например, "1 л" или "5 шт"),
-        // то выводим ее как есть, ничего не добавляя.
         if (/[а-яА-Яa-zA-Z]/.test(weightStr)) {
             return weightStr;
         }
 
-        // Старая логика для диапазонов веса (например, "500/600")
         if (weightStr.includes('/')) {
             const parts = weightStr.split('/');
             const unit = weightStr.includes('.') ? 'кг' : 'г';
             return `~ ${parts[0]}-${parts[1]} ${unit}`;
         }
 
-        // Старая логика для простого веса (например, "700" или "1.2")
         const unit = weightStr.includes('.') ? 'кг' : 'г';
         return `${weightStr} ${unit}`;
     };
-    // --- КОНЕЦ БЛОКА ИЗМЕНЕНИЙ ---
 
     const renderCategories = () => {
         const categories = ['Все', ...new Set(allProducts.map(p => p.category))];
@@ -460,7 +454,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderLoyalty(profileData.profile);
 
-            // <-- ИЗМЕНЕНИЕ: Инициализируем счетчик при первой загрузке
             unreadSupportMessages = profileData.profile.unread_messages || 0;
             updateSupportBadge(unreadSupportMessages);
 
@@ -504,7 +497,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderProducts();
             renderLoyalty(profileData.profile);
 
-            // <-- ИЗМЕНЕНИЕ: Инициализируем счетчик при переключении на профиль
             unreadSupportMessages = profileData.profile.unread_messages || 0;
             updateSupportBadge(unreadSupportMessages);
 
@@ -655,28 +647,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- НАЧАЛО БЛОКА ИЗМЕНЕНИЙ ---
     const openOrderModal = (editMode = 'none') => {
         modalError.textContent = '';
         deliveryOptions.parentElement.style.display = 'block';
 
+        // `deliveryPoints` - это массив объектов [{id: 1, name: 'Пункт 1'}, {id: 2, name: 'Пункт 2'}]
+        // Мы используем настоящий `point.id` для `value` и `point.name` для текста.
+        deliveryOptions.innerHTML = deliveryPoints
+            .map(point => `<option value="${point.id}">${point.name}</option>`)
+            .join('');
+
         if (editMode === 'composition' || editMode === 'delivery') {
-             modalTitle.textContent = editMode === 'composition' ? 'Подтверждение изменений' : 'Изменение пункта выдачи';
-             submitOrderBtn.textContent = 'Сохранить изменения';
-             submitOrderBtn.onclick = () => submitOrder(editMode);
-             phoneInput.value = activeOrder['Номер телефона'];
-             deliveryOptions.innerHTML = deliveryPoints.map((point, index) => `<option value="${index + 1}">${point}</option>`).join('');
-             if(activeOrder.delivery_point_id) {
-                 deliveryOptions.value = activeOrder.delivery_point_id;
-             }
+            modalTitle.textContent = editMode === 'composition' ? 'Подтверждение изменений' : 'Изменение пункта выдачи';
+            submitOrderBtn.textContent = 'Сохранить изменения';
+            submitOrderBtn.onclick = () => submitOrder(editMode);
+            phoneInput.value = activeOrder['Номер телефона'];
+
+            // Устанавливаем в выпадающем списке тот пункт, который сохранен в активном заказе
+            if (activeOrder.delivery_point_id) {
+                deliveryOptions.value = activeOrder.delivery_point_id;
+            }
         } else {
             modalTitle.textContent = 'Оформление заказа';
             submitOrderBtn.textContent = 'Подтвердить заказ';
             submitOrderBtn.onclick = () => submitOrder('none');
-            deliveryOptions.innerHTML = deliveryPoints.map((point, index) => `<option value="${index + 1}">${point}</option>`).join('');
             phoneInput.value = userProfile?.phone_number || '';
         }
         orderModal.classList.remove('hidden');
     };
+    // --- КОНЕЦ БЛОКА ИЗМЕНЕНИЙ ---
 
     checkoutBtn.addEventListener('click', () => {
         if (isEditingComposition) {
@@ -919,7 +919,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 addChatMessage('Здравствуйте! Чем могу помочь?');
             }
 
-            // <-- ИЗМЕНЕНИЕ: Сбрасываем счетчик при открытии
             unreadSupportMessages = 0;
             updateSupportBadge(unreadSupportMessages);
             sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
