@@ -664,7 +664,12 @@ document.addEventListener('DOMContentLoaded', () => {
              submitOrderBtn.textContent = 'Сохранить изменения';
              submitOrderBtn.onclick = () => submitOrder(editMode);
              phoneInput.value = activeOrder['Номер телефона'];
-             deliveryOptions.innerHTML = deliveryPoints.map((point, index) => `<option value="${index + 1}">${point}</option>`).join('');
+             // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+             // Теперь deliveryPoints - это массив объектов, а не строк
+             deliveryOptions.innerHTML = deliveryPoints.map(point =>
+                 `<option value="${point.id}">${point.name}</option>`
+             ).join('');
+             // --- КОНЕЦ ИЗМЕНЕНИЙ ---
              if(activeOrder.delivery_point_id) {
                  deliveryOptions.value = activeOrder.delivery_point_id;
              }
@@ -672,7 +677,12 @@ document.addEventListener('DOMContentLoaded', () => {
             modalTitle.textContent = 'Оформление заказа';
             submitOrderBtn.textContent = 'Подтвердить заказ';
             submitOrderBtn.onclick = () => submitOrder('none');
-            deliveryOptions.innerHTML = deliveryPoints.map((point, index) => `<option value="${index + 1}">${point}</option>`).join('');
+            // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+            // Теперь deliveryPoints - это массив объектов, а не строк
+            deliveryOptions.innerHTML = deliveryPoints.map(point =>
+                `<option value="${point.id}">${point.name}</option>`
+            ).join('');
+            // --- КОНЕЦ ИЗМЕНЕНИЙ ---
             phoneInput.value = userProfile?.phone_number || '';
         }
         orderModal.classList.remove('hidden');
