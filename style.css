@@ -1,4 +1,4 @@
-/* Файл: style.css (ИЗМЕНЕННАЯ ВЕРСИЯ) */
+/* Файл: style.css (ИСПРАВЛЕННАЯ ВЕРСИЯ 2.0) */
 
 :root {
     --primary-color: #e53935; /* Красный для акцентов */
@@ -90,16 +90,15 @@ h2 {
     border-color: var(--primary-color);
 }
 
-/* --- ИЗМЕНЕНИЕ: СЕТКА ТОВАРОВ --- */
 .products-grid {
     display: grid;
-    /* Создаем две колонки одинаковой ширины */
     grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
-/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */
 
 .product-loader {
+    /* --- ИСПРАВЛЕНИЕ 1: Растягиваем загрузчик на 2 колонки --- */
+    grid-column: 1 / -1;
     padding: 40px 20px;
     text-align: center;
     color: white;
@@ -153,28 +152,25 @@ h2 {
 .loader-title span:nth-child(11) { animation-delay: 1.1s; }
 .loader-title span:nth-child(12) { animation-delay: 1.2s; }
 
-/* --- ИЗМЕНЕНИЕ: СТИЛИ КАРТОЧКИ ТОВАРА --- */
 
-/* 1. Делаем карточку вертикальной */
 .product-card {
     display: flex;
-    flex-direction: column; /* Элементы теперь идут друг под другом */
+    flex-direction: column; /* Вертикальная карточка */
     gap: 10px;
     background-color: var(--card-bg-color);
     border-radius: 16px;
     padding: 15px;
     box-shadow: var(--shadow);
 }
-
-/* 2. Адаптируем изображение под новую ширину */
 .product-image-container {
     flex-shrink: 0;
-    width: 100%; /* Контейнер теперь на всю ширину карточки */
-}
-.product-image-placeholder {
     width: 100%;
-    height: auto;
-    aspect-ratio: 1 / 1; /* Делаем изображение квадратным и адаптивным */
+}
+
+/* --- ИСПРАВЛЕНИЕ 3: Возвращаем исходные стили для изображений по умолчанию (это починит корзину) --- */
+.product-image-placeholder {
+    width: 90px;
+    height: 90px;
     background-color: #f0f0f0;
     border-radius: 12px;
     display: flex;
@@ -184,49 +180,56 @@ h2 {
     font-size: 12px;
 }
 .product-image {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1 / 1; /* Делаем изображение квадратным и адаптивным */
+    width: 90px;
+    height: 90px;
     border-radius: 12px;
     object-fit: cover;
     background-color: #eee;
 }
 
-/* 3. Центрируем информацию и выравниваем высоту карточек */
+/* --- ИСПРАВЛЕНИЕ 3.1: А новые стили для каталога делаем КОНКРЕТНЫМИ, чтобы они не влияли на корзину --- */
+.products-grid .product-card .product-image-placeholder,
+.products-grid .product-card .product-image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+}
+
 .product-info {
-    /* display: flex; и flex-direction: column; уже не нужны, т.к. элементы идут по потоку */
-    /* width: 100%; тоже не нужен */
-    text-align: center; /* Центрируем текст */
-    flex-grow: 1; /* Этот блок будет растягиваться, чтобы кнопка всегда была внизу */
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    text-align: center;
+    flex-grow: 1;
 }
 .product-info h3 {
     margin: 0 0 5px 0;
-    font-size: 15px; /* Можно немного уменьшить для компактности */
-    min-height: 2.5em; /* Предотвращает "прыжки" карточек из-за разной длины названий */
+    font-size: 15px;
+    min-height: 2.5em; /* Предотвращает "прыжки" карточек */
     line-height: 1.25;
 }
 .product-info .price {
     font-weight: bold;
     font-size: 15px;
 }
+
 .product-info .weight {
     font-size: 13px;
     color: var(--text-light-color);
-    margin-top: 4px;
+    /* --- ИСПРАВЛЕНИЕ 2: Меняем отступ, так как вес теперь будет НАД ценой --- */
+    margin-bottom: 4px;
 }
 
-/* 4. Растягиваем кнопку на всю ширину */
 .product-actions {
-    margin-top: auto; /* Прижимает кнопку к низу карточки */
+    margin-top: auto;
     padding-top: 10px;
-    width: 100%; /* Блок с кнопкой теперь на всю ширину */
+    width: 100%;
 }
 .add-to-cart-btn {
-    width: 100% !important; /* Кнопка на всю ширину */
+    width: 100% !important;
     padding: 10px 16px !important;
     font-size: 15px !important;
 }
-/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */
 
 .btn-primary, .btn-secondary, .btn-danger {
     border: none;
@@ -459,8 +462,7 @@ h2 {
 @keyframes explode { 0% { opacity: 1; transform: translateY(0) rotate(0deg); } 100% { opacity: 0; transform: translateY(300px) rotate(720deg); } }
 
 
-/* --- ИЗМЕНЕНИЕ: ПОЛНОСТЬЮ ОБНОВЛЕННЫЕ СТИЛИ ДЛЯ ЧАТА ПОДДЕРЖКИ --- */
-
+/* --- СТИЛИ ДЛЯ ЧАТА ПОДДЕРЖКИ (БЕЗ ИЗМЕНЕНИЙ) --- */
 .support-icon {
     position: absolute;
     left: 120px;
@@ -486,7 +488,7 @@ h2 {
 
 .support-icon .cart-badge {
     top: -5px;
-    left: -8px; /* <-- ИЗМЕНЕНИЕ ЗДЕСЬ */
+    left: -8px;
 }
 
 .chat-overlay {
@@ -653,8 +655,6 @@ h2 {
     transform: scale(0.9);
 }
 
-/* --- НАЧАЛО ДОПОЛНЕНИЯ: СТИЛИ ДЛЯ РЕАЛЬНОГО ЧАТА --- */
-
 .chat-timestamp {
     font-size: 10px;
     color: inherit;
@@ -674,5 +674,3 @@ h2 {
     color: var(--text-light-color);
     padding: 20px;
 }
-
-/* --- КОНЕЦ ДОПОЛНЕНИЯ --- */
