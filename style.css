@@ -1,4 +1,4 @@
-/* Файл: style.css (Версия с центральным чатом и аватаром) */
+/* Файл: style.css (ИЗМЕНЕННАЯ ВЕРСИЯ) */
 
 :root {
     --primary-color: #e53935; /* Красный для акцентов */
@@ -90,11 +90,14 @@ h2 {
     border-color: var(--primary-color);
 }
 
+/* --- ИЗМЕНЕНИЕ: СЕТКА ТОВАРОВ --- */
 .products-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    /* Создаем две колонки одинаковой ширины */
+    grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
+/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */
 
 .product-loader {
     padding: 40px 20px;
@@ -150,20 +153,28 @@ h2 {
 .loader-title span:nth-child(11) { animation-delay: 1.1s; }
 .loader-title span:nth-child(12) { animation-delay: 1.2s; }
 
+/* --- ИЗМЕНЕНИЕ: СТИЛИ КАРТОЧКИ ТОВАРА --- */
 
+/* 1. Делаем карточку вертикальной */
 .product-card {
     display: flex;
-    gap: 15px;
+    flex-direction: column; /* Элементы теперь идут друг под другом */
+    gap: 10px;
     background-color: var(--card-bg-color);
     border-radius: 16px;
     padding: 15px;
     box-shadow: var(--shadow);
-    align-items: flex-start;
 }
-.product-image-container { flex-shrink: 0; }
+
+/* 2. Адаптируем изображение под новую ширину */
+.product-image-container {
+    flex-shrink: 0;
+    width: 100%; /* Контейнер теперь на всю ширину карточки */
+}
 .product-image-placeholder {
-    width: 90px;
-    height: 90px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1; /* Делаем изображение квадратным и адаптивным */
     background-color: #f0f0f0;
     border-radius: 12px;
     display: flex;
@@ -173,33 +184,49 @@ h2 {
     font-size: 12px;
 }
 .product-image {
-    width: 90px;
-    height: 90px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1; /* Делаем изображение квадратным и адаптивным */
     border-radius: 12px;
     object-fit: cover;
     background-color: #eee;
 }
 
+/* 3. Центрируем информацию и выравниваем высоту карточек */
 .product-info {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
+    /* display: flex; и flex-direction: column; уже не нужны, т.к. элементы идут по потоку */
+    /* width: 100%; тоже не нужен */
+    text-align: center; /* Центрируем текст */
+    flex-grow: 1; /* Этот блок будет растягиваться, чтобы кнопка всегда была внизу */
 }
-.product-info h3 { margin: 0 0 5px 0; font-size: 16px; }
-.product-info .price { font-weight: bold; font-size: 15px; }
-
+.product-info h3 {
+    margin: 0 0 5px 0;
+    font-size: 15px; /* Можно немного уменьшить для компактности */
+    min-height: 2.5em; /* Предотвращает "прыжки" карточек из-за разной длины названий */
+    line-height: 1.25;
+}
+.product-info .price {
+    font-weight: bold;
+    font-size: 15px;
+}
 .product-info .weight {
     font-size: 13px;
     color: var(--text-light-color);
     margin-top: 4px;
 }
 
-.product-actions { margin-top: auto; padding-top: 10px; display: flex; justify-content: flex-end; }
-.add-to-cart-btn {
-    width: auto !important;
-    padding: 8px 16px !important;
-    font-size: 14px !important;
+/* 4. Растягиваем кнопку на всю ширину */
+.product-actions {
+    margin-top: auto; /* Прижимает кнопку к низу карточки */
+    padding-top: 10px;
+    width: 100%; /* Блок с кнопкой теперь на всю ширину */
 }
+.add-to-cart-btn {
+    width: 100% !important; /* Кнопка на всю ширину */
+    padding: 10px 16px !important;
+    font-size: 15px !important;
+}
+/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */
 
 .btn-primary, .btn-secondary, .btn-danger {
     border: none;

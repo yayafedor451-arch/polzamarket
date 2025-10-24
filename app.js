@@ -1,4 +1,4 @@
-// Файл: app.js (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+// Файл: app.js (ИЗМЕНЕННАЯ ВЕРСИЯ)
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -246,6 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 : `<button class="btn-primary add-to-cart-btn" data-id="${product.id}" data-name="${product.name}">В корзину</button>`;
             const weightHtml = product.weight_display ? `<span class="weight">${formatWeight(product.weight_display)}</span>` : '';
 
+            /* --- ИЗМЕНЕНИЕ: Структура HTML карточки товара --- */
+            // Блок .product-actions вынесен из .product-info, чтобы кнопка всегда была внизу карточки при вертикальном отображении.
             return `
                 <div class="product-card">
                     <div class="product-image-container">${imageElement}</div>
@@ -253,9 +255,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h3>${product.name}</h3>
                         <span class="price">${product.price} руб.</span>
                         ${weightHtml}
-                        <div class="product-actions">${buttonHtml}</div>
                     </div>
+                    <div class="product-actions">${buttonHtml}</div>
                 </div>`;
+            /* --- КОНЕЦ ИЗМЕНЕНИЯ --- */
         }).join('');
     };
 
