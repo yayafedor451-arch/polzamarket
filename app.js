@@ -1,4 +1,4 @@
-// Файл: app.js (ИСПРАВЛЕННАЯ ВЕРСИЯ 3.0 - Возврат к исходной структуре)
+// Файл: app.js (Финальная версия с описанием и типом товара)
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -235,20 +235,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const buttonHtml = shouldDisableButton
                 ? `<button class="btn-primary btn-disabled view-active-order-btn">У вас есть заказ</button>`
                 : `<button class="btn-primary add-to-cart-btn" data-id="${product.id}" data-name="${product.name}">В корзину</button>`;
-            const weightHtml = product.weight_display ? `<span class="weight">${formatWeight(product.weight_display)}</span>` : '';
 
-            /* --- ИЗМЕНЕНИЕ: Возвращаем исходную структуру и меняем порядок элементов --- */
+            // --- НАЧАЛО БЛОКА ИЗМЕНЕНИЙ ---
+
+            // 1. Формируем блок с описанием (если оно есть)
+            const descriptionHtml = product.description
+                ? `<p class="product-description">${product.description}</p>`
+                : '<p class="product-description"></p>'; // Пустой тег для сохранения высоты
+
+            // 2. Формируем сноску о цене, как договаривались
+            let priceUnitInfoHtml = '';
+            if (product.unit || product.weight_display) {
+                const unitText = product.unit ? `*Цена за ${product.unit}` : '*Цена';
+                const weightText = product.weight_display ? ` весом ${product.weight_display}` : '';
+                priceUnitInfoHtml = `<div class="price-unit-info">${unitText}${weightText}</div>`;
+            } else {
+                priceUnitInfoHtml = '<div class="price-unit-info"></div>'; // Пустой тег для сохранения высоты
+            }
+
+            // 3. Собираем карточку в новом порядке
             return `
                 <div class="product-card">
                     <div class="product-image-container">${imageElement}</div>
                     <div class="product-info">
                         <h3>${product.name}</h3>
-                        ${weightHtml}
+                        ${descriptionHtml}
                         <span class="price">${product.price} руб.</span>
+                        ${priceUnitInfoHtml}
                         <div class="product-actions">${buttonHtml}</div>
                     </div>
                 </div>`;
-            /* --- КОНЕЦ ИЗМЕНЕНИЯ --- */
+            // --- КОНЕЦ БЛОКА ИЗМЕНЕНИЙ ---
+
         }).join('');
     };
 

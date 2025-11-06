@@ -1,4 +1,4 @@
-/* Файл: style.css (ИСПРАВЛЕННАЯ ВЕРСИЯ 2.0) */
+/* Файл: style.css (ИСПРАВЛЕННАЯ ВЕРСИЯ 3.0 с описанием и типом) */
 
 :root {
     --primary-color: #e53935; /* Красный для акцентов */
@@ -97,7 +97,6 @@ h2 {
 }
 
 .product-loader {
-    /* --- ИСПРАВЛЕНИЕ 1: Растягиваем загрузчик на 2 колонки --- */
     grid-column: 1 / -1;
     padding: 40px 20px;
     text-align: center;
@@ -167,7 +166,6 @@ h2 {
     width: 100%;
 }
 
-/* --- ИСПРАВЛЕНИЕ 3: Возвращаем исходные стили для изображений по умолчанию (это починит корзину) --- */
 .product-image-placeholder {
     width: 90px;
     height: 90px;
@@ -187,7 +185,6 @@ h2 {
     background-color: #eee;
 }
 
-/* --- ИСПРАВЛЕНИЕ 3.1: А новые стили для каталога делаем КОНКРЕТНЫМИ, чтобы они не влияли на корзину --- */
 .products-grid .product-card .product-image-placeholder,
 .products-grid .product-card .product-image {
     width: 100%;
@@ -205,18 +202,42 @@ h2 {
 .product-info h3 {
     margin: 0 0 5px 0;
     font-size: 15px;
-    min-height: 2.5em; /* Предотвращает "прыжки" карточек */
+    min-height: 2.5em;
     line-height: 1.25;
 }
+
+/* --- НАЧАЛО БЛОКА ИЗМЕНЕНИЙ 1: Стили для описания товара --- */
+.product-description {
+    font-size: 13px;
+    color: var(--text-light-color);
+    margin: 5px 0;
+    /* Ограничиваем описание тремя строками и добавляем многоточие */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 40px; /* Резервируем место, чтобы карточки не прыгали по высоте */
+}
+/* --- КОНЕЦ БЛОКА ИЗМЕНЕНИЙ 1 --- */
+
 .product-info .price {
     font-weight: bold;
     font-size: 15px;
 }
 
+/* --- НАЧАЛО БЛОКА ИЗМЕНЕНИЙ 2: Стили для сноски (цена за...) --- */
+.price-unit-info {
+    font-size: 11px;
+    color: #a0a0a0; /* Бледный цвет для сноски */
+    margin-top: 4px;
+    min-height: 1.2em; /* Предотвращает прыжки, если у товара нет сноски */
+}
+/* --- КОНЕЦ БЛОКА ИЗМЕНЕНИЙ 2 --- */
+
 .product-info .weight {
     font-size: 13px;
     color: var(--text-light-color);
-    /* --- ИСПРАВЛЕНИЕ 2: Меняем отступ, так как вес теперь будет НАД ценой --- */
     margin-bottom: 4px;
 }
 
