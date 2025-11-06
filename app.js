@@ -243,11 +243,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<p class="product-description">${product.description}</p>`
                 : '<p class="product-description"></p>'; // Пустой тег для сохранения высоты
 
-            // 2. Формируем сноску о цене, как договаривались
+            // 2. Формируем сноску о цене с улучшенной логикой
             let priceUnitInfoHtml = '';
             if (product.unit || product.weight_display) {
-                const unitText = product.unit ? `*Цена за ${product.unit}` : '*Цена';
-                const weightText = product.weight_display ? ` весом ${product.weight_display}` : '';
+                // Если указан тип (unit), используем его. Если нет, но указан вес, то используем вес как основной объект.
+                const mainUnit = product.unit || product.weight_display;
+
+                // Всегда начинаем фразу с "*Цена за..."
+                const unitText = `*Цена за ${mainUnit}`;
+
+                // Добавляем "весом...", только если ОБА поля заполнены (чтобы не было "Цена за 500 гр весом 500 гр")
+                const weightText = (product.unit && product.weight_display) ? ` весом ${product.weight_display}` : '';
+
                 priceUnitInfoHtml = `<div class="price-unit-info">${unitText}${weightText}</div>`;
             } else {
                 priceUnitInfoHtml = '<div class="price-unit-info"></div>'; // Пустой тег для сохранения высоты
@@ -269,7 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         }).join('');
     };
-
     const renderCart = () => {
         cartItemsContainer.innerHTML = '';
         if (Object.keys(cart).length === 0) {
