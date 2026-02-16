@@ -962,6 +962,38 @@ h2 {
     color: #333;
 }
 
+/* --- Переключатель Вход / Регистрация --- */
+
+.auth-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid #e0e0e0;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: #f5f5f5;
+    font-size: 14px;
+    font-weight: 600;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.auth-tab.active {
+    background: #4CAF50;
+    color: #fff;
+}
+
+.auth-form.hidden {
+    display: none;
+}
+
 .phone-login-subtitle {
     color: #777;
     font-size: 14px;
@@ -969,11 +1001,18 @@ h2 {
     margin-bottom: 25px;
 }
 
+.phone-login-subtitle b {
+    color: #e53935;
+    display: block;
+    margin-bottom: 6px;
+}
+
 .phone-login-card .form-group {
     margin-bottom: 15px;
 }
 
-.phone-login-card input[type="tel"] {
+.phone-login-card input[type="tel"],
+.phone-login-card input[type="text"] {
     width: 100%;
     padding: 14px 16px;
     border: 2px solid #e0e0e0;
@@ -986,7 +1025,13 @@ h2 {
     outline: none;
 }
 
-.phone-login-card input[type="tel"]:focus {
+.phone-login-card input[type="text"] {
+    font-size: 16px;
+    letter-spacing: 0;
+}
+
+.phone-login-card input[type="tel"]:focus,
+.phone-login-card input[type="text"]:focus {
     border-color: #4CAF50;
 }
 
