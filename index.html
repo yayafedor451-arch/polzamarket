@@ -216,13 +216,39 @@
                 <i class="fas fa-store"></i>
             </div>
             <h2>ПользаМаркет</h2>
-            <p class="phone-login-subtitle">Для входа введите номер телефона, который вы указывали при оформлении заказа в Telegram-боте.</p>
-            <div class="form-group">
-                <input type="tel" id="phone-login-input" placeholder="+7 (999) 123-45-67" autocomplete="tel">
+
+            <!-- Переключатель Вход / Регистрация -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login">Вход</button>
+                <button class="auth-tab" id="tab-register">Регистрация</button>
             </div>
-            <button id="phone-login-btn" class="btn-primary">Войти</button>
+
+            <!-- Форма входа -->
+            <div id="login-form" class="auth-form">
+                <p class="phone-login-subtitle">Введите номер телефона, который вы указывали при оформлении заказа.</p>
+                <div class="form-group">
+                    <input type="tel" id="phone-login-input" placeholder="+7 (999) 123-45-67" autocomplete="tel">
+                </div>
+                <button id="phone-login-btn" class="btn-primary">Войти</button>
+            </div>
+
+            <!-- Форма регистрации -->
+            <div id="register-form" class="auth-form hidden">
+                <p class="phone-login-subtitle">
+                    <b>⚠️ Только для новых покупателей!</b><br>
+                    Если вы ранее оформляли заказ через Telegram-бота — используйте «Вход» с тем же номером.
+                </p>
+                <div class="form-group">
+                    <input type="text" id="register-name-input" placeholder="Ваше имя" autocomplete="given-name">
+                </div>
+                <div class="form-group">
+                    <input type="tel" id="register-phone-input" placeholder="+7 (999) 123-45-67" autocomplete="tel">
+                </div>
+                <button id="phone-register-btn" class="btn-primary">Зарегистрироваться</button>
+            </div>
+
             <div id="phone-login-error" class="error"></div>
-            <p class="phone-login-hint">Если вы ранее не делали заказ, оформите первый заказ через <a href="https://t.me/Zakazalbybot" target="_blank">Telegram-бота</a>.</p>
+            <p class="phone-login-hint">Для полного функционала рекомендуем использовать <a href="https://t.me/YourBotUsername" target="_blank">Telegram-бота</a>.</p>
         </div>
     </div>
 
@@ -230,5 +256,3 @@
 
 </body>
 </html>
-
-
