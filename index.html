@@ -209,6 +209,23 @@
         </div>
     </div>
 
+    <!-- ЭКРАН АВТОРИЗАЦИИ ПО ТЕЛЕФОНУ (для доступа без Telegram) -->
+    <div id="phone-login-overlay" class="phone-login-overlay hidden">
+        <div class="phone-login-card">
+            <div class="phone-login-logo">
+                <i class="fas fa-store"></i>
+            </div>
+            <h2>ПользаМаркет</h2>
+            <p class="phone-login-subtitle">Для входа введите номер телефона, который вы указывали при оформлении заказа в Telegram-боте.</p>
+            <div class="form-group">
+                <input type="tel" id="phone-login-input" placeholder="+7 (999) 123-45-67" autocomplete="tel">
+            </div>
+            <button id="phone-login-btn" class="btn-primary">Войти</button>
+            <div id="phone-login-error" class="error"></div>
+            <p class="phone-login-hint">Если вы ранее не делали заказ, оформите первый заказ через <a href="https://t.me/YourBotUsername" target="_blank">Telegram-бота</a>.</p>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 
 </body>
