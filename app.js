@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- НАСТРОЙКИ ---
     const API_BASE_URL = 'https://devoutly-pragmatic-louse.cloudpub.ru:443';
-    const API_KEY = 'your-super-secret-and-long-api-key-12345';
     const tg = window.Telegram.WebApp;
 
     // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ ---
@@ -27,11 +26,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // true если зашли через Mini App с initData, false если через браузер по телефону
     let isTelegramMode = !!(tg.initData && tg.initData.length > 0);
     let phoneAuthUserId = null; // user_id полученный после авторизации по телефону
+    let phoneAuthToken = null;  // JWT-токен для безопасной авторизации
 
     // Восстанавливаем сессию авторизации по телефону после перезагрузки
     if (!isTelegramMode) {
+        const savedToken = sessionStorage.getItem('phoneAuthToken');
         const savedUserId = sessionStorage.getItem('phoneAuthUserId');
-        if (savedUserId) {
+        if (savedToken && savedUserId) {
+            phoneAuthToken = savedToken;
             phoneAuthUserId = parseInt(savedUserId, 10);
             userId = phoneAuthUserId;
         }
@@ -446,15 +448,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ЛОГИКА API ---
     async function fetchData(endpoint, options = {}) {
-        const headers = { 'X-API-Key': API_KEY, ...options.headers };
+        const headers = { ...options.headers };
         if (isTelegramMode && tg.initData) {
             headers['X-Telegram-Init-Data'] = tg.initData;
-        } else if (phoneAuthUserId) {
-            headers['X-Phone-User-Id'] = String(phoneAuthUserId);
+        } else if (phoneAuthToken) {
+            headers['X-Phone-User-Id'] = phoneAuthToken;
         }
         const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
         if (!response.ok) {
             const errorBody = await response.json().catch(() => ({ detail: `HTTP error! status: ${response.status}` }));
+            // Если токен истёк — сбрасываем сессию и показываем экран логина
+            if (response.status === 401 && !isTelegramMode) {
+                sessionStorage.removeItem('phoneAuthToken');
+                sessionStorage.removeItem('phoneAuthUserId');
+                phoneAuthToken = null;
+                phoneAuthUserId = null;
+                showPhoneLoginScreen();
+                throw new Error('Сессия истекла. Пожалуйста, войдите заново.');
+            }
             throw new Error(errorBody.detail || `Ошибка сети при запросе ${endpoint}`);
         }
         return response.json();
@@ -525,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadProfileData() {
         if (isEditingComposition) return;
-        if (!isTelegramMode && !phoneAuthUserId) return;
+        if (!isTelegramMode && !phoneAuthToken) return;
         try {
             const [profileData, activeOrderData] = await Promise.all([
                 fetchData('/api/user/profile'),
@@ -557,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modalError.textContent = 'Ваша корзина пуста.';
             return;
         }
-        if (!isTelegramMode && !phoneAuthUserId) { modalError.textContent = 'Ошибка авторизации. Перезагрузите страницу.'; return; }
+        if (!isTelegramMode && !phoneAuthToken) { modalError.textContent = 'Ошибка авторизации. Перезагрузите страницу.'; return; }
 
         let payload = {
             phone_number: phoneInput.value,
@@ -858,8 +869,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ФУНКЦИЯ ЭКРАНА АВТОРИЗАЦИИ ПО ТЕЛЕФОНУ ---
     const showPhoneLoginScreen = () => {
         const loginOverlay = document.getElementById('phone-login-overlay');
-        const loginBtn = document.getElementById('phone-login-btn');
-        const loginInput = document.getElementById('phone-login-input');
         const loginError = document.getElementById('phone-login-error');
 
         if (!loginOverlay) {
@@ -870,12 +879,47 @@ document.addEventListener('DOMContentLoaded', () => {
         loginOverlay.classList.remove('hidden');
         productLoader.classList.add('hidden');
 
+        // --- Переключение вкладок ---
+        const tabLogin = document.getElementById('tab-login');
+        const tabRegister = document.getElementById('tab-register');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+
+        tabLogin.addEventListener('click', () => {
+            tabLogin.classList.add('active');
+            tabRegister.classList.remove('active');
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+            loginError.textContent = '';
+        });
+
+        tabRegister.addEventListener('click', () => {
+            tabRegister.classList.add('active');
+            tabLogin.classList.remove('active');
+            registerForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+            loginError.textContent = '';
+        });
+
+        // --- Общая функция завершения авторизации ---
+        const completeAuth = async (data) => {
+            phoneAuthUserId = data.user_id;
+            phoneAuthToken = data.token;
+            userId = data.user_id;
+            sessionStorage.setItem('phoneAuthUserId', String(data.user_id));
+            sessionStorage.setItem('phoneAuthToken', data.token);
+            loginOverlay.classList.add('hidden');
+            await initializeAndFetch();
+            connectWebSocket();
+        };
+
+        // --- ВХОД ---
+        const loginBtn = document.getElementById('phone-login-btn');
+        const loginInput = document.getElementById('phone-login-input');
+
         loginBtn.addEventListener('click', async () => {
             const phone = loginInput.value.trim();
-            if (!phone) {
-                loginError.textContent = 'Введите номер телефона.';
-                return;
-            }
+            if (!phone) { loginError.textContent = 'Введите номер телефона.'; return; }
 
             loginBtn.disabled = true;
             loginBtn.textContent = 'Проверяем...';
@@ -884,29 +928,12 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/auth/phone`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': API_KEY
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ phone_number: phone })
                 });
-
                 const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.detail || 'Ошибка авторизации');
-                }
-
-                // Успешная авторизация
-                phoneAuthUserId = data.user_id;
-                userId = data.user_id;
-                sessionStorage.setItem('phoneAuthUserId', String(data.user_id));
-                loginOverlay.classList.add('hidden');
-
-                // Запускаем загрузку данных
-                await initializeAndFetch();
-                connectWebSocket();
-
+                if (!response.ok) throw new Error(data.detail || 'Ошибка авторизации');
+                await completeAuth(data);
             } catch (err) {
                 loginError.textContent = err.message;
             } finally {
@@ -916,10 +943,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         loginInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                loginBtn.click();
+            if (e.key === 'Enter') { e.preventDefault(); loginBtn.click(); }
+        });
+
+        // --- РЕГИСТРАЦИЯ ---
+        const registerBtn = document.getElementById('phone-register-btn');
+        const registerPhoneInput = document.getElementById('register-phone-input');
+        const registerNameInput = document.getElementById('register-name-input');
+
+        registerBtn.addEventListener('click', async () => {
+            const phone = registerPhoneInput.value.trim();
+            const name = registerNameInput.value.trim();
+            if (!phone) { loginError.textContent = 'Введите номер телефона.'; return; }
+
+            registerBtn.disabled = true;
+            registerBtn.textContent = 'Регистрируем...';
+            loginError.textContent = '';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone_number: phone, first_name: name })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'Ошибка регистрации');
+                await completeAuth(data);
+            } catch (err) {
+                loginError.textContent = err.message;
+            } finally {
+                registerBtn.disabled = false;
+                registerBtn.textContent = 'Зарегистрироваться';
             }
+        });
+
+        registerPhoneInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); registerBtn.click(); }
         });
     };
 
@@ -1004,7 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isTelegramMode) {
         // Стандартный путь — через Telegram Mini App
         initializeAndFetch();
-    } else if (phoneAuthUserId) {
+    } else if (phoneAuthToken) {
         // Сессия восстановлена из sessionStorage — сразу загружаем данные
         initializeAndFetch();
         connectWebSocket();
