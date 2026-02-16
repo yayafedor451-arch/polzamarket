@@ -23,6 +23,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let ws = null;
     let userId = null;
 
+    // --- РЕЖИМ АВТОРИЗАЦИИ ---
+    // true если зашли через Mini App с initData, false если через браузер по телефону
+    let isTelegramMode = !!(tg.initData && tg.initData.length > 0);
+    let phoneAuthUserId = null; // user_id полученный после авторизации по телефону
+
+    // Восстанавливаем сессию авторизации по телефону после перезагрузки
+    if (!isTelegramMode) {
+        const savedUserId = sessionStorage.getItem('phoneAuthUserId');
+        if (savedUserId) {
+            phoneAuthUserId = parseInt(savedUserId, 10);
+            userId = phoneAuthUserId;
+        }
+    }
+
     // ПАГИНАЦИЯ
     let currentHistoryOffset = 0;
     let totalHistoryCount = 0;
@@ -111,7 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const showErrorPopup = (message) => tg.showAlert(message);
+    const showErrorPopup = (message) => {
+        if (isTelegramMode && tg.showAlert) {
+            tg.showAlert(message);
+        } else {
+            alert(message);
+        }
+    };
 
     const showToast = (message) => {
         if (toastTimer) clearTimeout(toastTimer);
@@ -141,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Promise(resolve => {
             orderAnimationContainer.classList.remove('hidden');
             orderContentContainer.classList.add('hidden');
-            tg.HapticFeedback.notificationOccurred('success');
+            isTelegramMode && tg.HapticFeedback.notificationOccurred('success');
             confettiContainer.innerHTML = '';
             for (let i = 0; i < 50; i++) setTimeout(createConfetti, i * 20);
 
@@ -427,7 +447,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ЛОГИКА API ---
     async function fetchData(endpoint, options = {}) {
         const headers = { 'X-API-Key': API_KEY, ...options.headers };
-        if (tg.initData) headers['X-Telegram-Init-Data'] = tg.initData;
+        if (isTelegramMode && tg.initData) {
+            headers['X-Telegram-Init-Data'] = tg.initData;
+        } else if (phoneAuthUserId) {
+            headers['X-Phone-User-Id'] = String(phoneAuthUserId);
+        }
         const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
         if (!response.ok) {
             const errorBody = await response.json().catch(() => ({ detail: `HTTP error! status: ${response.status}` }));
@@ -501,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadProfileData() {
         if (isEditingComposition) return;
-        if (!tg.initData) return;
+        if (!isTelegramMode && !phoneAuthUserId) return;
         try {
             const [profileData, activeOrderData] = await Promise.all([
                 fetchData('/api/user/profile'),
@@ -533,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modalError.textContent = 'Ваша корзина пуста.';
             return;
         }
-        if (!tg.initData) { modalError.textContent = 'Ошибка: приложение запущено не внутри Telegram.'; return; }
+        if (!isTelegramMode && !phoneAuthUserId) { modalError.textContent = 'Ошибка авторизации. Перезагрузите страницу.'; return; }
 
         let payload = {
             phone_number: phoneInput.value,
@@ -620,11 +644,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const productName = btn.dataset.name;
             cart[productId] = (cart[productId] || 0) + 1;
             updateCartBadge();
-            tg.HapticFeedback.notificationOccurred('success');
+            isTelegramMode && tg.HapticFeedback.notificationOccurred('success');
             showToast(`"${productName}" добавлен в корзину`);
         }
         if (e.target.closest('.view-active-order-btn')) {
-            tg.showAlert("У вас уже есть активный заказ. Чтобы создать новый, отмените его. Чтобы изменить - воспользуйтесь кнопками 'Изменить состав' или 'Изменить пункт'.");
+            showErrorPopup("У вас уже есть активный заказ. Чтобы создать новый, отмените его. Чтобы изменить - воспользуйтесь кнопками 'Изменить состав' или 'Изменить пункт'.");
             navigateTo('profile-view');
         }
     });
@@ -701,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isEditingComposition) {
             openOrderModal('composition');
         } else if (activeOrder && !isEditingComposition) {
-            tg.showAlert("У вас уже есть активный заказ. Вы не можете оформить новый.");
+            showErrorPopup("У вас уже есть активный заказ. Вы не можете оформить новый.");
             navigateTo('profile-view');
         } else {
             openOrderModal('none');
@@ -709,7 +733,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     cancelEditBtn.addEventListener('click', () => {
-        tg.showConfirm("Вы уверены, что хотите отменить редактирование? Все изменения в корзине будут сброшены.", (confirmed) => {
+        const confirmAction = (msg, cb) => {
+            if (isTelegramMode && tg.showConfirm) {
+                tg.showConfirm(msg, cb);
+            } else {
+                cb(confirm(msg));
+            }
+        };
+        confirmAction("Вы уверены, что хотите отменить редактирование? Все изменения в корзине будут сброшены.", (confirmed) => {
             if (confirmed) {
                 isEditingComposition = false;
                 profileNavLink.classList.remove('hidden');
@@ -763,7 +794,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (e.target.id === 'cancel-order-btn') {
-            tg.showConfirm("Вы уверены, что хотите отменить заказ?", async (confirmed) => {
+            const confirmCancel = (msg, cb) => {
+                if (isTelegramMode && tg.showConfirm) {
+                    tg.showConfirm(msg, cb);
+                } else {
+                    cb(confirm(msg));
+                }
+            };
+            confirmCancel("Вы уверены, что хотите отменить заказ?", async (confirmed) => {
                 if (confirmed) {
                     try {
                         await fetchData('/api/orders/active', { method: 'DELETE' });
@@ -805,30 +843,105 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentIndex = categories.indexOf(currentCategory);
         if (deltaX < -swipeThreshold && currentIndex < categories.length - 1) {
             currentCategory = categories[currentIndex + 1];
-            tg.HapticFeedback.impactOccurred('light');
+            isTelegramMode && tg.HapticFeedback.impactOccurred('light');
             renderCategories();
             renderProducts();
         }
         if (deltaX > swipeThreshold && currentIndex > 0) {
             currentCategory = categories[currentIndex - 1];
-            tg.HapticFeedback.impactOccurred('light');
+            isTelegramMode && tg.HapticFeedback.impactOccurred('light');
             renderCategories();
             renderProducts();
         }
     }
 
-    const connectWebSocket = () => {
-        try {
-            const initData = new URLSearchParams(tg.initData);
-            const userData = JSON.parse(initData.get('user'));
-            if (!userData || !userData.id) {
-                console.error("Не удалось получить ID пользователя из InitData");
+    // --- ФУНКЦИЯ ЭКРАНА АВТОРИЗАЦИИ ПО ТЕЛЕФОНУ ---
+    const showPhoneLoginScreen = () => {
+        const loginOverlay = document.getElementById('phone-login-overlay');
+        const loginBtn = document.getElementById('phone-login-btn');
+        const loginInput = document.getElementById('phone-login-input');
+        const loginError = document.getElementById('phone-login-error');
+
+        if (!loginOverlay) {
+            console.error('Элемент #phone-login-overlay не найден в HTML');
+            return;
+        }
+
+        loginOverlay.classList.remove('hidden');
+        productLoader.classList.add('hidden');
+
+        loginBtn.addEventListener('click', async () => {
+            const phone = loginInput.value.trim();
+            if (!phone) {
+                loginError.textContent = 'Введите номер телефона.';
                 return;
             }
-            userId = userData.id;
-        } catch (e) {
-            console.error("Ошибка парсинга InitData:", e);
-            if (!userId) userId = '12345_test';
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Проверяем...';
+            loginError.textContent = '';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/phone`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify({ phone_number: phone })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Ошибка авторизации');
+                }
+
+                // Успешная авторизация
+                phoneAuthUserId = data.user_id;
+                userId = data.user_id;
+                sessionStorage.setItem('phoneAuthUserId', String(data.user_id));
+                loginOverlay.classList.add('hidden');
+
+                // Запускаем загрузку данных
+                await initializeAndFetch();
+                connectWebSocket();
+
+            } catch (err) {
+                loginError.textContent = err.message;
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Войти';
+            }
+        });
+
+        loginInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                loginBtn.click();
+            }
+        });
+    };
+
+    const connectWebSocket = () => {
+        if (isTelegramMode) {
+            try {
+                const initData = new URLSearchParams(tg.initData);
+                const userData = JSON.parse(initData.get('user'));
+                if (!userData || !userData.id) {
+                    console.error("Не удалось получить ID пользователя из InitData");
+                    return;
+                }
+                userId = userData.id;
+            } catch (e) {
+                console.error("Ошибка парсинга InitData:", e);
+                if (!userId) userId = '12345_test';
+            }
+        } else if (phoneAuthUserId) {
+            userId = phoneAuthUserId;
+        } else {
+            console.log('[WS] Нет авторизации, WebSocket не подключается.');
+            return;
         }
 
         const wsUrl = API_BASE_URL.replace('https', 'wss').replace('http', 'ws') + `/ws/${userId}`;
@@ -846,7 +959,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (supportChatOverlay.classList.contains('hidden')) {
                     unreadSupportMessages++;
                     updateSupportBadge(unreadSupportMessages);
-                    tg.HapticFeedback.notificationOccurred('success');
+                    isTelegramMode && tg.HapticFeedback.notificationOccurred('success');
                 } else {
                     sendWsMessage('mark_as_read', { user_id: userId, reader_type: 'user' });
                 }
@@ -879,12 +992,26 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     tg.ready();
-    tg.expand();
-    if (tg.isVersionAtLeast('6.1')) { tg.disableVerticalSwipes(); }
-    tg.setHeaderColor('#f4f4f9');
-    tg.onEvent('viewportChanged', () => { if (!tg.isExpanded) { tg.expand(); } });
+    if (isTelegramMode) {
+        tg.expand();
+        if (tg.isVersionAtLeast('6.1')) { tg.disableVerticalSwipes(); }
+        tg.setHeaderColor('#f4f4f9');
+        tg.onEvent('viewportChanged', () => { if (!tg.isExpanded) { tg.expand(); } });
+    }
     navigateTo('catalog-view');
-    initializeAndFetch();
+
+    // --- ЛОГИКА АВТОРИЗАЦИИ ---
+    if (isTelegramMode) {
+        // Стандартный путь — через Telegram Mini App
+        initializeAndFetch();
+    } else if (phoneAuthUserId) {
+        // Сессия восстановлена из sessionStorage — сразу загружаем данные
+        initializeAndFetch();
+        connectWebSocket();
+    } else {
+        // Путь через браузер, первый вход — показываем экран авторизации по телефону
+        showPhoneLoginScreen();
+    }
 
     const operatorAvatarSvg = `
     <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -926,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chatFaqButtons.innerHTML = '';
         chatInput.value = '';
         supportChatOverlay.classList.remove('hidden');
-        tg.HapticFeedback.impactOccurred('light');
+        isTelegramMode && tg.HapticFeedback.impactOccurred('light');
 
         try {
             const historyData = await fetchData(`/api/admin/chats/${userId}`);
@@ -977,5 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    connectWebSocket();
+    if (isTelegramMode) {
+        connectWebSocket();
+    }
 });
