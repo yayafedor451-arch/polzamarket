@@ -898,3 +898,125 @@ h2 {
     color: var(--text-light-color);
     padding: 20px;
 }
+/* =============================================
+   ЭКРАН АВТОРИЗАЦИИ ПО ТЕЛЕФОНУ
+   ============================================= */
+
+.phone-login-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.phone-login-overlay.hidden {
+    display: none;
+}
+
+.phone-login-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px 30px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.phone-login-logo {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+    font-size: 30px;
+    color: #fff;
+}
+
+.phone-login-card h2 {
+    margin: 0 0 10px;
+    font-size: 24px;
+    color: #333;
+}
+
+.phone-login-subtitle {
+    color: #777;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 25px;
+}
+
+.phone-login-card .form-group {
+    margin-bottom: 15px;
+}
+
+.phone-login-card input[type="tel"] {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 18px;
+    text-align: center;
+    letter-spacing: 1px;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.phone-login-card input[type="tel"]:focus {
+    border-color: #4CAF50;
+}
+
+.phone-login-card .btn-primary {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 12px;
+    margin-top: 5px;
+}
+
+.phone-login-card .error {
+    color: #e53935;
+    font-size: 13px;
+    min-height: 20px;
+    margin-top: 10px;
+}
+
+.phone-login-hint {
+    color: #999;
+    font-size: 12px;
+    margin-top: 20px;
+    line-height: 1.5;
+}
+
+.phone-login-hint a {
+    color: #4CAF50;
+    text-decoration: none;
+}
+
+.phone-login-hint a:hover {
+    text-decoration: underline;
+}
