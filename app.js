@@ -283,12 +283,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 3. Собираем карточку в новом порядке
+            // Ссылка "подробнее" только если есть описание
+            const moreLink = product.description
+                ? `<span class="product-more-link" data-id="${product.id}">подробнее</span>`
+                : '';
+
             return `
-                <div class="product-card">
+                <div class="product-card" data-product-id="${product.id}">
                     <div class="product-image-container">${imageElement}</div>
                     <div class="product-info">
                         <h3>${product.name}</h3>
                         ${descriptionHtml}
+                        ${moreLink}
                         <span class="price">${product.price} руб.</span>
                         ${priceUnitInfoHtml}
                         <div class="product-actions">${buttonHtml}</div>
@@ -297,7 +303,91 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- КОНЕЦ БЛОКА ИЗМЕНЕНИЙ ---
 
         }).join('');
+
+        // Навешиваем обработчик клика для открытия полной карточки (только по "подробнее")
+        productsGrid.querySelectorAll('.product-more-link').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const productId = parseInt(el.dataset.id);
+                const product = allProducts.find(p => p.id === productId);
+                if (product) showProductDetail(product);
+            });
+        });
     };
+
+    // --- ФУНКЦИЯ ПОЛНОЙ КАРТОЧКИ ТОВАРА ---
+    const showProductDetail = (product) => {
+        const imageUrl = product.photo_url ? `${API_BASE_URL}${product.photo_url}` : '';
+        const imageHtml = imageUrl
+            ? `<img src="${imageUrl}" alt="${product.name}" class="detail-image">`
+            : '<div class="detail-image-placeholder">Фото нет</div>';
+
+        const shouldDisableButton = activeOrder && !isEditingComposition;
+
+        const buttonHtml = shouldDisableButton
+            ? `<button class="btn-primary btn-disabled">У вас есть заказ</button>`
+            : `<button class="btn-primary detail-add-btn" data-id="${product.id}" data-name="${product.name}">В корзину</button>`;
+
+        let priceUnitInfoHtml = '';
+        if (product.unit || product.weight_display) {
+            const mainUnit = product.unit || product.weight_display;
+            const unitText = `*Цена за ${mainUnit}`;
+            const weightText = (product.unit && product.weight_display) ? ` весом ${product.weight_display}` : '';
+            priceUnitInfoHtml = `<div class="price-unit-info">${unitText}${weightText}</div>`;
+        }
+
+        const descriptionHtml = product.description
+            ? `<div class="detail-description">${product.description}</div>`
+            : '';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'product-detail-overlay';
+        overlay.innerHTML = `
+            <div class="product-detail-card">
+                <button class="detail-close-btn">&times;</button>
+                ${imageHtml}
+                <div class="detail-info">
+                    <h2 class="detail-title">${product.name}</h2>
+                    ${descriptionHtml}
+                    <div class="detail-price-row">
+                        <span class="detail-price">${product.price} руб.</span>
+                        ${priceUnitInfoHtml}
+                    </div>
+                    <div class="detail-actions">${buttonHtml}</div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Анимация появления
+        requestAnimationFrame(() => overlay.classList.add('active'));
+
+        // Закрытие
+        const close = () => {
+            overlay.classList.remove('active');
+            overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
+        };
+
+        overlay.querySelector('.detail-close-btn').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close();
+        });
+
+        // Кнопка "В корзину"
+        const addBtn = overlay.querySelector('.detail-add-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                const id = product.id;
+                cart[id] = (cart[id] || 0) + 1;
+                isTelegramMode && tg.HapticFeedback.impactOccurred('light');
+                renderProducts();
+                renderCart();
+                close();
+            });
+        }
+    };
+
     const renderCart = () => {
         cartItemsContainer.innerHTML = '';
         if (Object.keys(cart).length === 0) {
