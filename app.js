@@ -283,8 +283,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 3. Собираем карточку в новом порядке
-            // Ссылка "подробнее" — всегда показываем
-            const moreLink = `<span class="product-more-link" data-id="${product.id}">подробнее</span>`;
+            // Ссылка "подробнее" только если есть описание
+            const moreLink = product.description
+                ? `<span class="product-more-link" data-id="${product.id}">подробнее</span>`
+                : '';
 
             return `
                 <div class="product-card" data-product-id="${product.id}">
