@@ -429,6 +429,20 @@ h2 {
     min-height: 40px;
 }
 
+.product-more-link {
+    font-size: 12px;
+    color: #5a9e5f;
+    text-decoration: underline;
+    cursor: pointer;
+    display: inline-block;
+    margin-bottom: 6px;
+    transition: color 0.2s;
+}
+
+.product-more-link:hover {
+    color: #3d7a41;
+}
+
 .product-info .price {
     font-weight: bold;
     font-size: 15px;
@@ -898,6 +912,133 @@ h2 {
     color: var(--text-light-color);
     padding: 20px;
 }
+/* =============================================
+   ПОЛНАЯ КАРТОЧКА ТОВАРА (OVERLAY)
+   ============================================= */
+
+.product-detail-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.product-detail-overlay.active {
+    opacity: 1;
+}
+
+.product-detail-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f6faf6 100%);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.22, 0.68, 0.31, 1);
+}
+
+.product-detail-overlay.active .product-detail-card {
+    transform: translateY(0);
+}
+
+.detail-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: rgba(255, 255, 255, 0.85);
+    color: #555;
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    backdrop-filter: blur(4px);
+}
+
+.detail-image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 20px 20px 0 0;
+    display: block;
+}
+
+.detail-image-placeholder {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 16px;
+    border-radius: 20px 20px 0 0;
+}
+
+.detail-info {
+    padding: 20px;
+}
+
+.detail-title {
+    margin: 0 0 12px 0;
+    font-size: 22px;
+    line-height: 1.3;
+    color: #2d2d2d;
+}
+
+.detail-description {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #4a4a4a;
+    margin-bottom: 16px;
+    white-space: pre-line;
+}
+
+.detail-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.detail-price {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2e7d32;
+}
+
+.detail-price-row .price-unit-info {
+    font-size: 12px;
+    margin-top: 0;
+}
+
+.detail-actions {
+    padding-bottom: 10px;
+}
+
+.detail-actions .btn-primary {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 12px;
+}
+
 /* =============================================
    ЭКРАН АВТОРИЗАЦИИ ПО ТЕЛЕФОНУ
    ============================================= */
