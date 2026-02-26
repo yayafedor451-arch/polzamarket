@@ -359,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden'; // Блокируем скролл фона
 
         // Анимация появления
         requestAnimationFrame(() => overlay.classList.add('active'));
@@ -366,6 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Закрытие
         const close = () => {
             overlay.classList.remove('active');
+            document.body.style.overflow = ''; // Возвращаем скролл
             overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
         };
 
