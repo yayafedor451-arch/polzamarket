@@ -381,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const id = product.id;
                 cart[id] = (cart[id] || 0) + 1;
                 isTelegramMode && tg.HapticFeedback.impactOccurred('light');
+                updateCartBadge();
                 renderProducts();
                 renderCart();
                 close();
