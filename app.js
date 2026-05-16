@@ -146,6 +146,81 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2000);
     };
 
+    // ════════════════════════════════════════════════════════════════════
+    // МОДАЛКА: ЛИМИТ КОЛИЧЕСТВА (5+ единиц одного товара)
+    // ════════════════════════════════════════════════════════════════════
+    // Для Mini App показываем только Telegram-ссылку — юзер уже в Telegram,
+    // ему удобнее остаться там, а не переходить в VK.
+    let isQuantityLimitModalInitialized = false;
+    const showQuantityLimitModal = () => {
+        const modal = document.getElementById('quantity-limit-modal');
+        if (!modal) return;
+
+        modal.classList.remove('hidden');
+        // FAILSAFE: высокий z-index inline
+        modal.style.zIndex = '2147483647';
+        modal.style.position = 'fixed';
+        modal.style.inset = '0';
+
+        // Тактильный отклик в Telegram — пусть юзер почувствует что что-то произошло
+        if (isTelegramMode && tg.HapticFeedback) {
+            tg.HapticFeedback.notificationOccurred('warning');
+        }
+
+        if (isQuantityLimitModalInitialized) return;
+        isQuantityLimitModalInitialized = true;
+
+        const closeBtn = document.getElementById('close-quantity-limit-modal-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+        }
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.add('hidden');
+        });
+    };
+
+    // ════════════════════════════════════════════════════════════════════
+    // МОДАЛКА: АККАУНТ ЗАБЛОКИРОВАН
+    // ════════════════════════════════════════════════════════════════════
+    // Показывается при попытке оформить заказ заблокированным аккаунтом.
+    // Бэк теперь блокирует всех (и phone-юзеров, и Telegram-юзеров),
+    // раньше Telegram-юзеры могли оформлять даже будучи заблокированными.
+    let isAccountBlockedModalInitialized = false;
+    const showAccountBlockedModal = (detail) => {
+        const modal = document.getElementById('account-blocked-modal');
+        if (!modal) return;
+
+        const reasonEl = document.getElementById('account-blocked-reason');
+        if (reasonEl) {
+            reasonEl.textContent = (detail && detail.message) || 'Аккаунт заблокирован.';
+        }
+
+        const tgEl = document.getElementById('account-blocked-telegram');
+        if (tgEl && detail && detail.support_telegram) {
+            tgEl.href = detail.support_telegram;
+        }
+
+        modal.classList.remove('hidden');
+        modal.style.zIndex = '2147483647';
+        modal.style.position = 'fixed';
+        modal.style.inset = '0';
+
+        if (isTelegramMode && tg.HapticFeedback) {
+            tg.HapticFeedback.notificationOccurred('error');
+        }
+
+        if (isAccountBlockedModalInitialized) return;
+        isAccountBlockedModalInitialized = true;
+
+        const closeBtn = document.getElementById('close-account-blocked-modal-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+        }
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.add('hidden');
+        });
+    };
+
     const createConfetti = () => {
         const colors = ['#e53935', '#ff7043', '#2e7d32', '#fdd835', '#1e88e5'];
         const confettiEl = document.createElement('div');
@@ -381,7 +456,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (addBtn) {
             addBtn.addEventListener('click', () => {
                 const id = product.id;
-                cart[id] = (cart[id] || 0) + 1;
+                const currentQty = cart[id] || 0;
+                // Лимит 5 шт. одного товара
+                if (currentQty >= 5) {
+                    showQuantityLimitModal();
+                    return;
+                }
+                cart[id] = currentQty + 1;
                 isTelegramMode && tg.HapticFeedback.impactOccurred('light');
                 updateCartBadge();
                 renderProducts();
@@ -559,6 +640,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 showPhoneLoginScreen();
                 throw new Error('Сессия истекла. Пожалуйста, войдите заново.');
             }
+            // Если бэк вернул structured detail (объект) — пробрасываем его свойством
+            // err.detail. Это нужно для модалок типа quantity_limit / account_blocked:
+            // вызывающий код проверит err.detail.code и покажет соответствующую модалку.
+            // Без этого new Error(object) превратил бы detail в "[object Object]".
+            if (errorBody.detail && typeof errorBody.detail === 'object') {
+                const err = new Error(errorBody.detail.message || 'Ошибка');
+                err.detail = errorBody.detail;
+                err.status = response.status;
+                throw err;
+            }
             throw new Error(errorBody.detail || `Ошибка сети при запросе ${endpoint}`);
         }
         return response.json();
@@ -710,6 +801,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } catch (error) {
+            // Если бэк вернул structured detail — показываем соответствующую модалку.
+            if (error.detail && typeof error.detail === 'object') {
+                if (error.detail.code === 'quantity_limit') {
+                    orderModal.classList.add('hidden');
+                    showQuantityLimitModal();
+                    return;
+                }
+                if (error.detail.code === 'account_blocked') {
+                    orderModal.classList.add('hidden');
+                    showAccountBlockedModal(error.detail);
+                    return;
+                }
+            }
             modalError.textContent = error.message;
         } finally {
             submitOrderBtn.disabled = false;
@@ -746,7 +850,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) {
             const productId = btn.dataset.id;
             const productName = btn.dataset.name;
-            cart[productId] = (cart[productId] || 0) + 1;
+            const currentQty = cart[productId] || 0;
+            // Лимит 5 шт. одного товара
+            if (currentQty >= 5) {
+                showQuantityLimitModal();
+                return;
+            }
+            cart[productId] = currentQty + 1;
             updateCartBadge();
             isTelegramMode && tg.HapticFeedback.notificationOccurred('success');
             showToast(`"${productName}" добавлен в корзину`);
@@ -791,7 +901,17 @@ document.addEventListener('DOMContentLoaded', () => {
     cartItemsContainer.addEventListener('click', (e) => {
         if (e.target.matches('.quantity-btn')) {
             const { id, action } = e.target.dataset;
-            cart[id] = (cart[id] || 0) + (action === 'increase' ? 1 : -1);
+            const newQty = (cart[id] || 0) + (action === 'increase' ? 1 : -1);
+
+            // Лимит 5 шт. одного товара. Дублируем серверную проверку из /api/orders,
+            // чтобы юзер сразу видел красивую модалку, а не текстовую ошибку после
+            // попытки оформления.
+            if (action === 'increase' && newQty > 5) {
+                showQuantityLimitModal();
+                return;
+            }
+
+            cart[id] = newQty;
             if (cart[id] <= 0) delete cart[id];
             updateCartBadge();
             renderCart();
