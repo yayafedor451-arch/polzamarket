@@ -167,6 +167,48 @@
     </div>
 
 
+    <!-- МОДАЛКА: ПРЕВЫШЕН ЛИМИТ КОЛИЧЕСТВА (5+ единиц одного товара).
+         Для Mini App показываем только Telegram-ссылку — юзер уже в Telegram,
+         ему удобнее остаться там, а не переходить в VK. -->
+    <div id="quantity-limit-modal" class="modal-overlay hidden">
+        <div class="modal-content quantity-limit-modal-content">
+            <button id="close-quantity-limit-modal-btn" class="close-btn">&times;</button>
+            <div class="quantity-limit-icon"><i class="fas fa-boxes"></i></div>
+            <h2>Нужно больше 5 штук?</h2>
+            <p class="quantity-limit-message">
+                Через приложение можно заказать <b>не более 5 единиц</b> одного товара.<br>
+                Если нужно больше — напишите нам напрямую, и мы оформим вручную:
+            </p>
+            <div class="quantity-limit-contacts">
+                <a href="https://t.me/Alby159" target="_blank" rel="noopener" class="support-contact">
+                    <i class="fab fa-telegram"></i>
+                    <span>Telegram: @Alby159</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА: АККАУНТ ЗАБЛОКИРОВАН.
+         Показывается если бэк вернул 403 с code=account_blocked.
+         Содержит реальную причину и контакты поддержки. -->
+    <div id="account-blocked-modal" class="modal-overlay hidden">
+        <div class="modal-content account-blocked-modal-content">
+            <button id="close-account-blocked-modal-btn" class="close-btn">&times;</button>
+            <div class="account-blocked-icon"><i class="fas fa-lock"></i></div>
+            <h2>Аккаунт заблокирован</h2>
+            <p id="account-blocked-reason" class="account-blocked-reason">
+                <!-- сюда фронт вставит реальную причину из ответа сервера -->
+            </p>
+            <div class="account-blocked-support">
+                <p>Если считаете блокировку ошибкой или хотите её снять — свяжитесь с поддержкой:</p>
+                <a id="account-blocked-telegram" href="https://t.me/Alby159" target="_blank" rel="noopener" class="support-contact">
+                    <i class="fab fa-telegram"></i>
+                    <span>Telegram: @Alby159</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- НИЖНЯЯ НАВИГАЦИОННАЯ ПАНЕЛЬ -->
     <nav class="bottom-nav">
         <a href="#" class="nav-link active" data-view="catalog-view">
