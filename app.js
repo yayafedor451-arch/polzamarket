@@ -3,7 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- НАСТРОЙКИ ---
-    const API_BASE_URL = 'https://devoutly-pragmatic-louse.cloudpub.ru:443';
+    const API_BASE_URL = 'https://polzamarket.shop';
     const tg = window.Telegram.WebApp;
 
     // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ ---
