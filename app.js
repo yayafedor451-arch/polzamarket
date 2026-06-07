@@ -3,7 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- НАСТРОЙКИ ---
-    const API_BASE_URL = 'https://polzamarket.shop:443';
+    const API_BASE_URL = 'https://www.polzamarket.shop:443';
     const tg = window.Telegram.WebApp;
 
     // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ ---
