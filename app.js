@@ -921,25 +921,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
+    const isSupportChatOpen = () => supportChatOverlay && !supportChatOverlay.classList.contains('hidden');
+
+    const confirmLeaveSupportChat = (onConfirm) => {
+        const message = 'Покинуть окно техподдержки?';
+        if (isTelegramMode && tg.showConfirm) {
+            tg.showConfirm(message, (confirmed) => {
+                if (confirmed) onConfirm();
+            });
+        } else if (confirm(message)) {
+            onConfirm();
+        }
+    };
+
+    const handleNavLinkClick = (link) => {
+        if (isEditingComposition && link.dataset.view === 'profile-view') {
+            return;
+        }
+        const viewId = link.dataset.view;
+
+        if (isEditingComposition && viewId === 'catalog-view') {
+            renderProducts();
+            navigateTo('catalog-view');
+            return;
+        }
+
+        if (viewId === 'cart-view') renderCart();
+        if (viewId === 'profile-view' && !isEditingComposition) {
+             loadProfileData();
+        }
+        navigateTo(viewId);
+    };
+
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            if (isEditingComposition && link.dataset.view === 'profile-view') {
+            if (isSupportChatOpen()) {
+                confirmLeaveSupportChat(() => {
+                    closeSupportChat();
+                    handleNavLinkClick(link);
+                });
                 return;
             }
-            const viewId = link.dataset.view;
-
-            if (isEditingComposition && viewId === 'catalog-view') {
-                renderProducts();
-                navigateTo('catalog-view');
-                return;
-            }
-
-            if (viewId === 'cart-view') renderCart();
-            if (viewId === 'profile-view' && !isEditingComposition) {
-                 loadProfileData();
-            }
-            navigateTo(viewId);
+            handleNavLinkClick(link);
         });
     });
 
@@ -1491,9 +1515,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     supportChatOverlay.addEventListener('click', (e) => {
-        if (e.target === supportChatOverlay) {
-            closeSupportChat();
-        }
+        if (e.target === supportChatOverlay) return;
     });
 
     if (isTelegramMode) {
