@@ -48,7 +48,7 @@ body {
     position: relative;
 }
 .profile-header {
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 10px;
 }
 .app-header h1, h2 {
@@ -557,10 +557,10 @@ h2 {
     transform: none;
     min-width: 0;
     width: auto;
-    height: 30px;
-    padding: 0 10px;
-    border-radius: 9px;
-    font-size: 11px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 12px;
     line-height: 1;
     box-shadow: 0 2px 6px rgba(138, 74, 18, 0.1);
     flex-shrink: 0;
