@@ -343,6 +343,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return allProducts.find(p => p.id == productId) || editingOrderSnapshot[String(productId)] || null;
     };
 
+    const getOrderStatusText = (order) => {
+        if (order?.status === 'completed') return 'Выполнен';
+        if (order?.status !== 'cancelled') return 'В работе';
+        if (order.cancel_reason === 'manual') return 'Отменен вами';
+        if (['system', 'system_finish'].includes(order.cancel_reason)) return 'Невыкуп';
+        if (order.cancel_reason === 'system_cleanup') return 'Очищен системой';
+        if (order.cancel_reason === 'quarantine_rejected') return 'Отклонен';
+        return 'Отменен';
+    };
+
     const renderCategories = () => {
         const categories = ['Все', ...new Set(allProducts.map(p => p.category))];
         categoryPillsContainer.innerHTML = categories.map(cat => {
@@ -591,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="history-item-collage">${collageImages}</div>
                     <div class="history-item-info">
                         <span class="history-date">Заказ от ${new Date(order.created_at).toLocaleDateString()}</span>
-                        <span class="history-status status-${order.status}">${order.status === 'completed' ? 'Выполнен' : 'Отменен'}</span>
+                        <span class="history-status status-${order.status}">${getOrderStatusText(order)}</span>
                     </div>
                     <span class="history-item-price">${order.final_price} руб.</span>
                 </div>
@@ -955,7 +965,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const images = (order.products || []).map(p => p.photo_url ? `${API_BASE_URL}${p.photo_url}` : null).filter(Boolean);
                 historyModalCollage.innerHTML = images.slice(0, 4).map(src => `<img src="${src}" alt="">`).join('');
                 historyModalCollage.dataset.count = Math.min(images.length, 4);
-                historyModalInfo.innerHTML = `<b>Дата:</b> ${new Date(order.created_at).toLocaleString()}<br><b>Статус:</b> <span class="status-${order.status}">${order.status === 'completed' ? 'Выполнен' : 'Отменен'}</span><br><b>Получение:</b> ${order['Способ получения']}<br><strong>Итого: ${order.final_price} руб.</strong>`;
+                historyModalInfo.innerHTML = `<b>Дата:</b> ${new Date(order.created_at).toLocaleString()}<br><b>Статус:</b> <span class="status-${order.status}">${getOrderStatusText(order)}</span><br><b>Получение:</b> ${order['Способ получения']}<br><strong>Итого: ${order.final_price} руб.</strong>`;
                 historyModalProductsList.innerHTML = (order.products || []).map(p => `<div class="cart-item"><img src="${p.photo_url ? `${API_BASE_URL}${p.photo_url}` : ''}" alt="${p.name}" class="product-image" style="width: 50px; height: 50px; border-radius: 8px;"><div class="cart-item-info"><h4>${p.name}</h4><span>${p.quantity} шт. &times; ${p.price} руб.</span>${p.weight_display ? `<div class="weight" style="margin-top: 5px;">${formatWeight(p.weight_display)}</div>` : ''}</div></div>`).join('');
                 historyDetailModal.classList.remove('hidden');
             }
