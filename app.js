@@ -891,6 +891,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     showAccountBlockedModal(error.detail);
                     return;
                 }
+                if (error.detail.code === 'shop_closed') {
+                    orderModal.classList.add('hidden');
+                    isEditingComposition = false;
+                    editingOrderSnapshot = {};
+                    removedEditingProductIds = new Set();
+                    cart = {};
+                    updateCartBadge();
+                    renderCart();
+                    profileNavLink.classList.remove('hidden');
+                    await loadProfileData();
+                    showErrorPopup(error.detail.message || 'Сбор уже закрыт. Изменить заказ сейчас нельзя.');
+                    return;
+                }
+                if (error.detail.code === 'product_unavailable') {
+                    modalError.textContent = error.detail.message || 'Один из товаров уже недоступен. Обновите корзину.';
+                    await loadProfileData();
+                    renderProducts();
+                    renderCart();
+                    return;
+                }
             }
             modalError.textContent = error.message;
         } finally {
