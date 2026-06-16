@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>ПользаМаркет</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20260616-01">
     <!-- Библиотека для генерации QR-кодов -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <!-- Этот скрипт подключает официальную библиотеку Telegram для Mini Apps -->
@@ -19,11 +19,9 @@
             <header class="app-header">
                 <h1>Каталог</h1>
                 <!-- ИЗМЕНЕНИЕ: ДОБАВЛЕНА ИКОНКА ДЛЯ ВЫЗОВА ЧАТА -->
-                <div id="support-chat-btn" class="support-icon">
-                    <i class="fas fa-wrench"></i>
-                    <!-- --- НАЧАЛО ИЗМЕНЕНИЙ --- -->
+                <div id="support-chat-btn" class="support-icon support-care-btn">
+                    <span>Отдел заботы</span>
                     <span id="support-badge" class="cart-badge hidden">0</span>
-                    <!-- --- КОНЕЦ ИЗМЕНЕНИЙ --- -->
                 </div>
                 <div id="status-badge">Загрузка...</div>
             </header>
@@ -236,8 +234,13 @@
     <div id="support-chat-overlay" class="chat-overlay hidden">
         <div id="chat-window" class="chat-window">
             <header class="chat-header">
-                <h2>Поддержка</h2>
-                <button id="close-chat-btn" class="close-btn">&times;</button>
+                <button id="close-chat-btn" class="chat-back-btn" aria-label="Назад">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="chat-title">
+                    <h2>Отдел заботы</h2>
+                    <span>Пишите, если нужна помощь</span>
+                </div>
             </header>
             <div id="chat-messages" class="chat-messages">
                 <!-- Сюда JS будет добавлять сообщения -->
@@ -296,7 +299,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260616-03"></script>
+    <script src="app.js?v=20260616-04"></script>
 
 </body>
 </html>
