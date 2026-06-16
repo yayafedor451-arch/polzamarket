@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let toastTimer = null;
     let currentCategory = 'Все';
     let isEditingComposition = false;
+    let editingOrderSnapshot = {};
+    let removedEditingProductIds = new Set();
     let unreadSupportMessages = 0;
 
     // --- WEBSOCKET ДЛЯ ЧАТА ---
@@ -328,6 +330,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${weightStr} ${unit}`;
     };
 
+    const buildEditingOrderSnapshot = (order) => {
+        editingOrderSnapshot = {};
+        removedEditingProductIds = new Set();
+        (order?.products || []).forEach(p => {
+            if (!p.id) return;
+            editingOrderSnapshot[String(p.id)] = { ...p };
+        });
+    };
+
+    const getCartProductInfo = (productId) => {
+        return allProducts.find(p => p.id == productId) || editingOrderSnapshot[String(productId)] || null;
+    };
+
     const renderCategories = () => {
         const categories = ['Все', ...new Set(allProducts.map(p => p.category))];
         categoryPillsContainer.innerHTML = categories.map(cat => {
@@ -487,6 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 cart[id] = currentQty + 1;
+                if (isEditingComposition) removedEditingProductIds.delete(String(id));
                 isTelegramMode && tg.HapticFeedback.impactOccurred('light');
                 updateCartBadge();
                 renderProducts();
@@ -514,23 +530,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let subtotalPrice = 0;
         Object.entries(cart).forEach(([productId, quantity]) => {
-            const product = allProducts.find(p => p.id == productId);
+            const product = getCartProductInfo(productId);
             if (!product) return;
             subtotalPrice += product.price * quantity;
             const imageUrl = product.photo_url ? `${API_BASE_URL}${product.photo_url}` : '';
             const imageElement = imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="product-image">` : '<div class="product-image-placeholder"></div>';
+            const isCurrentProduct = allProducts.some(p => p.id == productId);
+            const increaseBtn = isCurrentProduct
+                ? `<button class="quantity-btn" data-id="${productId}" data-action="increase">+</button>`
+                : `<button class="quantity-btn" disabled title="Товар сейчас недоступен">+</button>`;
             const item = document.createElement('div');
             item.className = 'cart-item card';
             item.innerHTML = `
                 ${imageElement}
                 <div class="cart-item-info">
                     <h4>${product.name}</h4>
-                    <span>${product.price} руб.</span>
+                    <span>${product.price} руб.${isCurrentProduct ? '' : ' · из текущего заказа'}</span>
                 </div>
                 <div class="cart-item-controls">
                     <button class="quantity-btn" data-id="${productId}" data-action="decrease">-</button>
                     <span>${quantity}</span>
-                    <button class="quantity-btn" data-id="${productId}" data-action="increase">+</button>
+                    ${increaseBtn}
                 </div>`;
             cartItemsContainer.appendChild(item);
         });
@@ -686,9 +706,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const productDetails = Object.entries(order['Позиции']).map(([productName, orderItem]) => {
             let productInfo = allProducts.find(p => p.name === productName);
             if (!productInfo) {
-                productInfo = { id: null, name: productName, photo_url: null, weight_display: null };
+                productInfo = {
+                    id: orderItem.product_id || null,
+                    name: productName,
+                    photo_url: orderItem.photo_url || null,
+                    weight_display: orderItem.weight_display || null,
+                    unit: orderItem.unit || null,
+                    description: orderItem.description || null
+                };
             }
-            return { ...productInfo, quantity: orderItem.quantity, price: orderItem.price };
+            return {
+                ...productInfo,
+                id: productInfo.id || orderItem.product_id || null,
+                photo_url: orderItem.photo_url || productInfo.photo_url || null,
+                weight_display: orderItem.weight_display || productInfo.weight_display || null,
+                unit: orderItem.unit || productInfo.unit || null,
+                description: orderItem.description || productInfo.description || null,
+                quantity: orderItem.quantity,
+                price: orderItem.price
+            };
         });
         return { ...order, products: productDetails };
     }
@@ -788,8 +824,9 @@ document.addEventListener('DOMContentLoaded', () => {
             products: Object.entries(cart).map(([productId, quantity]) => ({
                 product_id: parseInt(productId),
                 quantity,
-                price: allProducts.find(p => p.id == productId)?.price || 0
+                price: getCartProductInfo(productId)?.price || 0
             })),
+            removed_product_ids: Array.from(removedEditingProductIds).map(id => parseInt(id)).filter(Boolean),
             delivery_point_id: null,
             delivery_address: null
         };
@@ -818,6 +855,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             orderModal.classList.add('hidden');
             isEditingComposition = false;
+            editingOrderSnapshot = {};
+            removedEditingProductIds = new Set();
             profileNavLink.classList.remove('hidden');
             cart = {};
             updateCartBadge();
@@ -886,6 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             cart[productId] = currentQty + 1;
+            if (isEditingComposition) removedEditingProductIds.delete(String(productId));
             updateCartBadge();
             isTelegramMode && tg.HapticFeedback.notificationOccurred('success');
             showToast(`"${productName}" добавлен в корзину`);
@@ -941,7 +981,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             cart[id] = newQty;
-            if (cart[id] <= 0) delete cart[id];
+            if (cart[id] <= 0) {
+                delete cart[id];
+                if (isEditingComposition && editingOrderSnapshot[String(id)]) {
+                    removedEditingProductIds.add(String(id));
+                }
+            } else if (isEditingComposition) {
+                removedEditingProductIds.delete(String(id));
+            }
             updateCartBadge();
             renderCart();
         }
@@ -1005,6 +1052,8 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmAction("Вы уверены, что хотите отменить редактирование? Все изменения в корзине будут сброшены.", (confirmed) => {
             if (confirmed) {
                 isEditingComposition = false;
+                editingOrderSnapshot = {};
+                removedEditingProductIds = new Set();
                 profileNavLink.classList.remove('hidden');
                 cart = {};
                 updateCartBadge();
@@ -1021,6 +1070,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.id === 'edit-order-composition-btn') {
             if (!activeOrder) return;
             isEditingComposition = true;
+            buildEditingOrderSnapshot(activeOrder);
             profileNavLink.classList.add('hidden');
             cart = {};
             (activeOrder.products || []).forEach(p => {
@@ -1069,6 +1119,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         await fetchData('/api/orders/active', { method: 'DELETE' });
                         showToast("Заказ успешно отменен.");
                         isEditingComposition = false;
+                        editingOrderSnapshot = {};
+                        removedEditingProductIds = new Set();
                         profileNavLink.classList.remove('hidden');
                         await loadProfileData();
                         renderCategories();
