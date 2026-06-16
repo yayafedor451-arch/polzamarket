@@ -130,7 +130,9 @@
             <!-- Блок ввода адреса удален -->
             <div class="form-group">
                 <label for="phone-number">Ваш номер телефона:</label>
-                <input type="tel" id="phone-number" placeholder="+7 (999) 123-45-67">
+                <input type="tel" id="phone-number" placeholder="+7 (999) 123-45-67"
+                       autocomplete="tel" inputmode="tel" enterkeyhint="done"
+                       autocapitalize="off" autocorrect="off" spellcheck="false">
             </div>
             <button id="submit-order-btn" class="btn-primary">Подтвердить заказ</button>
             <div id="modal-error" class="error"></div>
