@@ -104,6 +104,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- ОСНОВНЫЕ ФУНКЦИИ ---
+    const normalizePhoneJS = (phone) => {
+        if (!phone) return null;
+        let digits = phone.replace(/\D/g, '');
+        if (digits.length === 11 && digits.startsWith('8')) {
+            digits = '7' + digits.slice(1);
+        } else if (digits.length === 11 && digits.startsWith('7')) {
+            // already normalized without plus
+        } else if (digits.length === 10) {
+            digits = '7' + digits;
+        }
+        if (digits.length !== 11 || !digits.startsWith('7')) {
+            return null;
+        }
+        return '+' + digits;
+    };
+
+    const formatPhoneForDisplay = (phone) => {
+        const normalized = normalizePhoneJS(phone);
+        if (!normalized) return phone || '';
+        const m = normalized.match(/^\+7(\d{3})(\d{3})(\d{2})(\d{2})$/);
+        if (!m) return normalized;
+        return `+7 (${m[1]}) ${m[2]}-${m[3]}-${m[4]}`;
+    };
+
     const navigateTo = (viewId) => {
         views.forEach(view => view.classList.add('hidden'));
         document.getElementById(viewId)?.classList.remove('hidden');
@@ -747,7 +771,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function submitOrder(editMode = 'none') {
-        if (!phoneInput.value) { modalError.textContent = 'Пожалуйста, введите номер телефона.'; return; }
+        const normalizedPhone = normalizePhoneJS(phoneInput.value);
+        if (!normalizedPhone) {
+            modalError.textContent = 'Пожалуйста, введите корректный номер телефона.';
+            return;
+        }
+        phoneInput.value = formatPhoneForDisplay(normalizedPhone);
         if (Object.keys(cart).length === 0 && editMode !== 'delivery') {
             modalError.textContent = 'Ваша корзина пуста.';
             return;
@@ -755,7 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isTelegramMode && !phoneAuthToken) { modalError.textContent = 'Ошибка авторизации. Перезагрузите страницу.'; return; }
 
         let payload = {
-            phone_number: phoneInput.value,
+            phone_number: normalizedPhone,
             products: Object.entries(cart).map(([productId, quantity]) => ({
                 product_id: parseInt(productId),
                 quantity,
@@ -926,7 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
              modalTitle.textContent = editMode === 'composition' ? 'Подтверждение изменений' : 'Изменение пункта выдачи';
              submitOrderBtn.textContent = 'Сохранить изменения';
              submitOrderBtn.onclick = () => submitOrder(editMode);
-             phoneInput.value = activeOrder['Номер телефона'];
+             phoneInput.value = formatPhoneForDisplay(activeOrder['Номер телефона']);
              deliveryOptions.innerHTML = deliveryPoints.map(point =>
                  `<option value="${point.id}">${point.name}</option>`
              ).join('');
@@ -940,10 +969,19 @@ document.addEventListener('DOMContentLoaded', () => {
             deliveryOptions.innerHTML = deliveryPoints.map(point =>
                 `<option value="${point.id}">${point.name}</option>`
             ).join('');
-            phoneInput.value = userProfile?.phone_number || '';
+            phoneInput.value = formatPhoneForDisplay(userProfile?.phone_number || '');
         }
         orderModal.classList.remove('hidden');
     };
+
+    if (phoneInput) {
+        phoneInput.addEventListener('blur', () => {
+            const normalized = normalizePhoneJS(phoneInput.value);
+            if (normalized) {
+                phoneInput.value = formatPhoneForDisplay(normalized);
+            }
+        });
+    }
 
     checkoutBtn.addEventListener('click', () => {
         if (isEditingComposition) {
