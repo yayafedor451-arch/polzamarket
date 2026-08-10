@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- WEBSOCKET ДЛЯ ЧАТА ---
     let ws = null;
+    let wsAccessToken = null;
+    let wsConnectPending = false;
     let userId = null;
 
     // --- РЕЖИМ АВТОРИЗАЦИИ ---
@@ -656,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="qr-code-wrapper" id="qrcode-placeholder">
                     <i class="fas fa-question-circle" id="show-active-order-details-btn"></i>
                 </div>
-                <h2>Заказ #${String(order['№ заказа']).padStart(4, '0')}</h2>
+                <h2>Заказ #${String(order['№ заказа'])}</h2>
                 <p class="order-details-small">
                     ${deliveryMethod}<br>
                     <strong>Телефон:</strong> ${order['Номер телефона']}<br>
@@ -668,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                  <button class="btn-danger" id="cancel-order-btn" style="margin-top: 10px;">Отменить заказ</button>
                 `;
-            new QRCode(document.getElementById('qrcode-placeholder'), { text: String(order['№ заказа']).padStart(4, '0'), width: 180, height: 180 });
+            new QRCode(document.getElementById('qrcode-placeholder'), { text: String(order['№ заказа']), width: 180, height: 180 });
         } else {
             orderContentContainer.innerHTML = '<p class="empty-cart">У вас нет активных заказов.</p>';
         }
@@ -676,13 +678,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ЛОГИКА API ---
     async function fetchData(endpoint, options = {}) {
-        const headers = { ...options.headers };
+        const { timeoutMs = 0, retryOnTimeout = false, ...fetchOptions } = options;
+        const headers = { ...fetchOptions.headers };
         if (isTelegramMode && tg.initData) {
             headers['X-Telegram-Init-Data'] = tg.initData;
         } else if (phoneAuthToken) {
             headers['X-Phone-User-Id'] = phoneAuthToken;
         }
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+        let response;
+        const attempts = retryOnTimeout ? 2 : 1;
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            const controller = timeoutMs > 0 && !fetchOptions.signal ? new AbortController() : null;
+            const timeoutId = controller
+                ? setTimeout(() => controller.abort(), timeoutMs)
+                : null;
+            try {
+                response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    ...fetchOptions,
+                    headers,
+                    signal: controller ? controller.signal : fetchOptions.signal
+                });
+                break;
+            } catch (error) {
+                if (error && error.name === 'AbortError' && attempt < attempts) {
+                    console.warn(`[API] ${endpoint}: повтор после таймаута`);
+                    continue;
+                }
+                if (error && error.name === 'AbortError') {
+                    const timeoutError = new Error('Сервер отвечает слишком долго. Проверьте соединение и попробуйте ещё раз.');
+                    timeoutError.code = 'request_timeout';
+                    throw timeoutError;
+                }
+                throw error;
+            } finally {
+                if (timeoutId) clearTimeout(timeoutId);
+            }
+        }
         if (!response.ok) {
             const errorBody = await response.json().catch(() => ({ detail: `HTTP error! status: ${response.status}` }));
             // Если токен истёк — сбрасываем сессию и показываем экран логина
@@ -858,7 +889,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetchData('/api/orders', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                timeoutMs: 12000,
+                retryOnTimeout: true
             });
 
             const newOrderDetails = await getFullOrderDetails(response.order_details);
@@ -1005,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const orderId = item.dataset.orderId;
             const order = orderHistory.find(o => o.id == orderId);
             if (order) {
-                historyModalOrderId.textContent = `#${String(order.id).padStart(4, '0')}`;
+                historyModalOrderId.textContent = `#${String(order.id)}`;
                 const images = (order.products || []).map(p => p.photo_url ? `${API_BASE_URL}${p.photo_url}` : null).filter(Boolean);
                 historyModalCollage.innerHTML = images.slice(0, 4).map(src => `<img src="${src}" alt="">`).join('');
                 historyModalCollage.dataset.count = Math.min(images.length, 4);
@@ -1339,7 +1372,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const connectWebSocket = () => {
+    const connectWebSocket = async () => {
+        if (wsConnectPending || (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING))) {
+            return;
+        }
         if (isTelegramMode) {
             try {
                 const initData = new URLSearchParams(tg.initData);
@@ -1360,7 +1396,30 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const wsUrl = API_BASE_URL.replace('https', 'wss').replace('http', 'ws') + `/ws/${userId}`;
+        wsConnectPending = true;
+        try {
+            if (!wsAccessToken) {
+                if (isTelegramMode) {
+                    const ticket = await fetchData('/api/user/ws-token', {
+                        method: 'POST',
+                        timeoutMs: 10000
+                    });
+                    wsAccessToken = ticket.token;
+                } else {
+                    wsAccessToken = phoneAuthToken;
+                }
+            }
+        } catch (error) {
+            console.error('[WS] Не удалось получить билет подключения:', error);
+            setTimeout(connectWebSocket, 10000);
+            return;
+        } finally {
+            wsConnectPending = false;
+        }
+
+        if (!wsAccessToken) return;
+        const tokenParam = `?token=${encodeURIComponent(wsAccessToken)}`;
+        const wsUrl = API_BASE_URL.replace('https', 'wss').replace('http', 'ws') + `/ws/${userId}${tokenParam}`;
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -1388,6 +1447,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onclose = () => {
             console.log('[WS] Соединение закрыто. Попытка переподключения через 3 секунды...');
+            if (isTelegramMode) wsAccessToken = null;
             setTimeout(connectWebSocket, 3000);
         };
 
