@@ -415,10 +415,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const moreLink = product.description
                 ? `<span class="product-more-link" data-id="${product.id}">подробнее</span>`
                 : '';
-            const promoHtml = Number(product.bulk_discount_amount) > 0 && Number(product.bulk_discount_min_qty) > 0
-                ? `<div class="product-promo">−${product.bulk_discount_amount} руб. за каждую при покупке от ${product.bulk_discount_min_qty} шт.</div>`
-                : '';
-
             return `
                 <div class="product-card" data-product-id="${product.id}">
                     <div class="product-image-container">${imageElement}</div>
@@ -427,7 +423,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${descriptionHtml}
                         ${moreLink}
                         <span class="price">${product.price} руб.</span>
-                        ${promoHtml}
                         ${priceUnitInfoHtml}
                         <div class="product-actions">${buttonHtml}</div>
                     </div>
@@ -471,10 +466,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const descriptionHtml = product.description
             ? `<div class="detail-description">${product.description}</div>`
             : '';
-        const promoHtml = Number(product.bulk_discount_amount) > 0 && Number(product.bulk_discount_min_qty) > 0
-            ? `<div class="product-promo detail-promo">Скидка ${product.bulk_discount_amount} руб. на каждую единицу при покупке от ${product.bulk_discount_min_qty} шт.</div>`
-            : '';
-
         const overlay = document.createElement('div');
         overlay.className = 'product-detail-overlay';
         overlay.innerHTML = `
@@ -488,7 +479,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="detail-price">${product.price} руб.</span>
                         ${priceUnitInfoHtml}
                     </div>
-                    ${promoHtml}
                     <div class="detail-actions">${buttonHtml}</div>
                 </div>
             </div>
