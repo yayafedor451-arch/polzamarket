@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const subtotalPriceEl = document.getElementById('subtotal-price');
     const discountRowEl = document.getElementById('discount-row');
     const discountAmountEl = document.getElementById('discount-amount');
+    const productDiscountRowEl = document.getElementById('product-discount-row');
+    const productDiscountAmountEl = document.getElementById('product-discount-amount');
     const finalPriceEl = document.getElementById('final-price');
     const checkoutBtn = document.getElementById('checkout-btn');
     const cancelEditBtn = document.getElementById('cancel-edit-btn');
@@ -413,6 +415,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const moreLink = product.description
                 ? `<span class="product-more-link" data-id="${product.id}">подробнее</span>`
                 : '';
+            const promoHtml = Number(product.bulk_discount_amount) > 0 && Number(product.bulk_discount_min_qty) > 0
+                ? `<div class="product-promo">−${product.bulk_discount_amount} руб. за каждую при покупке от ${product.bulk_discount_min_qty} шт.</div>`
+                : '';
 
             return `
                 <div class="product-card" data-product-id="${product.id}">
@@ -422,6 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${descriptionHtml}
                         ${moreLink}
                         <span class="price">${product.price} руб.</span>
+                        ${promoHtml}
                         ${priceUnitInfoHtml}
                         <div class="product-actions">${buttonHtml}</div>
                     </div>
@@ -465,6 +471,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const descriptionHtml = product.description
             ? `<div class="detail-description">${product.description}</div>`
             : '';
+        const promoHtml = Number(product.bulk_discount_amount) > 0 && Number(product.bulk_discount_min_qty) > 0
+            ? `<div class="product-promo detail-promo">Скидка ${product.bulk_discount_amount} руб. на каждую единицу при покупке от ${product.bulk_discount_min_qty} шт.</div>`
+            : '';
 
         const overlay = document.createElement('div');
         overlay.className = 'product-detail-overlay';
@@ -479,6 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="detail-price">${product.price} руб.</span>
                         ${priceUnitInfoHtml}
                     </div>
+                    ${promoHtml}
                     <div class="detail-actions">${buttonHtml}</div>
                 </div>
             </div>
@@ -541,10 +551,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let subtotalPrice = 0;
+        let productDiscount = 0;
         Object.entries(cart).forEach(([productId, quantity]) => {
             const product = getCartProductInfo(productId);
             if (!product) return;
             subtotalPrice += product.price * quantity;
+            const promoApplies = Number(product.bulk_discount_min_qty) > 0 && quantity >= Number(product.bulk_discount_min_qty);
+            const lineProductDiscount = promoApplies ? quantity * Number(product.bulk_discount_amount || 0) : 0;
+            productDiscount += lineProductDiscount;
             const imageUrl = product.photo_url ? `${API_BASE_URL}${product.photo_url}` : '';
             const imageElement = imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="product-image">` : '<div class="product-image-placeholder"></div>';
             const isCurrentProduct = allProducts.some(p => p.id == productId);
@@ -557,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${imageElement}
                 <div class="cart-item-info">
                     <h4>${product.name}</h4>
-                    <span>${product.price} руб.${isCurrentProduct ? '' : ' · из текущего заказа'}</span>
+                    <span>${product.price} руб.${isCurrentProduct ? '' : ' · из текущего заказа'}${lineProductDiscount > 0 ? ` · скидка −${lineProductDiscount} руб.` : ''}</span>
                 </div>
                 <div class="cart-item-controls">
                     <button class="quantity-btn" data-id="${productId}" data-action="decrease">-</button>
@@ -568,9 +582,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const discountPercent = userProfile?.status_system?.[userProfile.status]?.discount || 0;
-        let finalPrice = subtotalPrice;
+        const afterProductDiscount = Math.max(0, subtotalPrice - productDiscount);
+        let finalPrice = afterProductDiscount;
+        productDiscountRowEl.style.display = productDiscount > 0 ? 'flex' : 'none';
+        productDiscountAmountEl.textContent = `- ${productDiscount} руб.`;
         if (discountPercent > 0) {
-            const discountAmount = Math.round(subtotalPrice * (discountPercent / 100));
+            const discountAmount = Math.round(afterProductDiscount * (discountPercent / 100));
             finalPrice -= discountAmount;
             subtotalPriceEl.textContent = `${subtotalPrice} руб.`;
             subtotalPriceEl.classList.add('has-discount');
@@ -764,7 +781,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 unit: orderItem.unit || productInfo.unit || null,
                 description: orderItem.description || productInfo.description || null,
                 quantity: orderItem.quantity,
-                price: orderItem.price
+                price: orderItem.price,
+                bulk_discount_amount: Number(orderItem.bulk_discount_amount || 0),
+                bulk_discount_min_qty: Number(orderItem.bulk_discount_min_qty || 0),
+                line_discount_amount: Number(orderItem.line_discount_amount || 0)
             };
         });
         return { ...order, products: productDetails };
