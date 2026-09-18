@@ -79,6 +79,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeModalBtn = document.getElementById('close-modal-btn');
     const deliveryOptions = document.getElementById('delivery-options');
     const phoneInput = document.getElementById('phone-number');
+    const primaryPhoneGroup = document.getElementById('primary-phone-group');
+    const deliveryAddressGroup = document.getElementById('delivery-address-group');
+    const deliveryPhoneGroup = document.getElementById('delivery-phone-group');
+    const deliveryAddressInput = document.getElementById('delivery-address');
+    const deliveryPhoneInput = document.getElementById('delivery-phone');
     const submitOrderBtn = document.getElementById('submit-order-btn');
     const modalError = document.getElementById('modal-error');
     const modalTitle = document.getElementById('modal-title');
@@ -858,12 +863,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function submitOrder(editMode = 'none') {
-        const normalizedPhone = normalizePhoneJS(phoneInput.value);
-        if (!normalizedPhone) {
+        const isDelivery = deliveryOptions.value === 'delivery';
+        const normalizedPhone = normalizePhoneJS(
+            phoneInput.value || userProfile?.phone_number || activeOrder?.['Основной номер телефона'] || ''
+        );
+        const deliveryAddress = (deliveryAddressInput.value || '').trim();
+        const deliveryPhone = normalizePhoneJS(deliveryPhoneInput.value || '');
+        if (!deliveryOptions.value) {
+            modalError.textContent = 'Выберите пункт самовывоза или доставку.';
+            return;
+        }
+        if (!isDelivery && !normalizedPhone) {
             modalError.textContent = 'Пожалуйста, введите корректный номер телефона.';
             return;
         }
-        phoneInput.value = formatPhoneForDisplay(normalizedPhone);
+        if (isDelivery && !deliveryAddress) {
+            modalError.textContent = 'Укажите адрес доставки.';
+            return;
+        }
+        if (isDelivery && !deliveryPhone) {
+            modalError.textContent = 'Укажите корректный телефон для доставки.';
+            return;
+        }
+
+        const deliveryProducts = editMode === 'delivery' && activeOrder
+            ? (activeOrder.products || [])
+            : Object.entries(cart).map(([productId, quantity]) => ({ productId, quantity }));
+        const totalBoxes = deliveryProducts.reduce(
+            (sum, item) => sum + Math.max(0, Number(item.quantity) || 0),
+            0
+        );
+        if (isDelivery && totalBoxes < 3) {
+            modalError.textContent = 'Выберите пункт самовывоза или закажите от 3 ящиков.';
+            return;
+        }
+        if (normalizedPhone) {
+            phoneInput.value = formatPhoneForDisplay(normalizedPhone);
+        }
         if (Object.keys(cart).length === 0 && editMode !== 'delivery') {
             modalError.textContent = 'Ваша корзина пуста.';
             return;
@@ -871,7 +907,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isTelegramMode && !phoneAuthToken) { modalError.textContent = 'Ошибка авторизации. Перезагрузите страницу.'; return; }
 
         let payload = {
-            phone_number: normalizedPhone,
+            phone_number: normalizedPhone || '',
             products: Object.entries(cart).map(([productId, quantity]) => ({
                 product_id: parseInt(productId),
                 quantity,
@@ -879,7 +915,8 @@ document.addEventListener('DOMContentLoaded', () => {
             })),
             removed_product_ids: Array.from(removedEditingProductIds).map(id => parseInt(id)).filter(Boolean),
             delivery_point_id: null,
-            delivery_address: null
+            delivery_address: isDelivery ? deliveryAddress : null,
+            delivery_phone: isDelivery ? deliveryPhone : null
         };
 
         if (editMode === 'delivery' && activeOrder) {
@@ -890,7 +927,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
         }
 
-        payload.delivery_point_id = parseInt(deliveryOptions.value);
+        if (!isDelivery) {
+            payload.delivery_point_id = parseInt(deliveryOptions.value, 10);
+        }
 
         submitOrderBtn.disabled = true;
         submitOrderBtn.textContent = 'Отправка...';
@@ -1095,28 +1134,64 @@ document.addEventListener('DOMContentLoaded', () => {
         modalError.textContent = '';
         deliveryOptions.parentElement.style.display = 'block';
 
+        const pickupPoints = deliveryPoints.filter(point => {
+            const name = String(point.name || '').trim().toUpperCase().replace('Ё', 'Е');
+            return name !== 'ДОСТАВКА' && name !== 'DELIVERY';
+        });
+        deliveryOptions.innerHTML = [
+            '<option value="">Выберите способ получения</option>',
+            ...pickupPoints.map(point =>
+                `<option value="${escapeAttr(point.id)}">${escapeHtml(point.name)}</option>`
+            ),
+            '<option value="delivery">ДОСТАВКА</option>'
+        ].join('');
+
         if (editMode === 'composition' || editMode === 'delivery') {
              modalTitle.textContent = editMode === 'composition' ? 'Подтверждение изменений' : 'Изменение пункта выдачи';
              submitOrderBtn.textContent = 'Сохранить изменения';
              submitOrderBtn.onclick = () => submitOrder(editMode);
-             phoneInput.value = formatPhoneForDisplay(activeOrder['Номер телефона']);
-             deliveryOptions.innerHTML = deliveryPoints.map(point =>
-                 `<option value="${point.id}">${point.name}</option>`
-             ).join('');
-             if(activeOrder.delivery_point_id) {
+             phoneInput.value = formatPhoneForDisplay(
+                 activeOrder['Основной номер телефона'] || userProfile?.phone_number || activeOrder['Номер телефона'] || ''
+             );
+             if (activeOrder['Адрес доставки']) {
+                 deliveryOptions.value = 'delivery';
+                 deliveryAddressInput.value = activeOrder['Адрес доставки'];
+                 deliveryPhoneInput.value = formatPhoneForDisplay(
+                     activeOrder['Телефон доставки'] || activeOrder['Номер телефона'] || ''
+                 );
+             } else if(activeOrder.delivery_point_id) {
                  deliveryOptions.value = activeOrder.delivery_point_id;
              }
         } else {
             modalTitle.textContent = 'Оформление заказа';
             submitOrderBtn.textContent = 'Подтвердить заказ';
             submitOrderBtn.onclick = () => submitOrder('none');
-            deliveryOptions.innerHTML = deliveryPoints.map(point =>
-                `<option value="${point.id}">${point.name}</option>`
-            ).join('');
             phoneInput.value = formatPhoneForDisplay(userProfile?.phone_number || '');
+            deliveryOptions.value = '';
+            deliveryAddressInput.value = '';
+            deliveryPhoneInput.value = '';
         }
+        updateDeliveryContactFields();
         orderModal.classList.remove('hidden');
     };
+
+    const updateDeliveryContactFields = () => {
+        const isDelivery = deliveryOptions.value === 'delivery';
+        primaryPhoneGroup?.classList.toggle('hidden', isDelivery);
+        deliveryAddressGroup?.classList.toggle('hidden', !isDelivery);
+        deliveryPhoneGroup?.classList.toggle('hidden', !isDelivery);
+        if (!isDelivery) {
+            deliveryAddressInput.value = '';
+            deliveryPhoneInput.value = '';
+        }
+        modalError.textContent = '';
+    };
+
+    deliveryOptions.addEventListener('change', updateDeliveryContactFields);
+    deliveryPhoneInput.addEventListener('blur', () => {
+        const normalized = normalizePhoneJS(deliveryPhoneInput.value);
+        if (normalized) deliveryPhoneInput.value = formatPhoneForDisplay(normalized);
+    });
 
     if (phoneInput) {
         phoneInput.addEventListener('blur', () => {
