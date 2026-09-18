@@ -139,6 +139,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return `+7 (${m[1]}) ${m[2]}-${m[3]}-${m[4]}`;
     };
 
+    const escapeHtml = (text) => {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(String(text ?? '')));
+        return div.innerHTML;
+    };
+
+    const escapeAttr = (text) => escapeHtml(text);
+
     const navigateTo = (viewId) => {
         views.forEach(view => view.classList.add('hidden'));
         document.getElementById(viewId)?.classList.remove('hidden');
