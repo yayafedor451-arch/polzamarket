@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let cart = {};
     let allProducts = [];
     let deliveryPoints = [];
+    const isAddressDeliveryPoint = point => {
+        const name = String(point?.name || '').trim().toUpperCase().replace('Ё', 'Е');
+        return ['АДРЕСНАЯ ДОСТАВКА', 'ДОСТАВКА', 'DELIVERY'].includes(name);
+    };
     let activeOrder = null;
     let userProfile = null;
     let orderHistory = [];
@@ -1138,20 +1142,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const openOrderModal = (editMode = 'none') => {
+    const openOrderModal = async (editMode = 'none') => {
+        try {
+            const pointsData = await fetchData('/api/delivery-points');
+            deliveryPoints = pointsData.delivery_points || [];
+        } catch (error) {
+            console.error('Не удалось обновить способы получения:', error);
+            showToast('Не удалось загрузить способы получения. Попробуйте ещё раз.');
+            return;
+        }
         modalError.textContent = '';
         deliveryOptions.parentElement.style.display = 'block';
 
-        const pickupPoints = deliveryPoints.filter(point => {
-            const name = String(point.name || '').trim().toUpperCase().replace('Ё', 'Е');
-            return name !== 'ДОСТАВКА' && name !== 'DELIVERY';
-        });
+        const addressDeliveryAvailable = deliveryPoints.some(isAddressDeliveryPoint);
+        const pickupPoints = deliveryPoints.filter(point => !isAddressDeliveryPoint(point));
         deliveryOptions.innerHTML = [
             '<option value="">Выберите способ получения</option>',
             ...pickupPoints.map(point =>
                 `<option value="${escapeAttr(point.id)}">${escapeHtml(point.name)}</option>`
             ),
-            '<option value="delivery">ДОСТАВКА</option>'
+            ...(addressDeliveryAvailable
+                ? ['<option value="delivery">Адресная доставка</option>']
+                : [])
         ].join('');
 
         if (editMode === 'composition' || editMode === 'delivery') {
